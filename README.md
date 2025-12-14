@@ -1,50 +1,24 @@
-# Welcome to your Expo app 👋
+# Refrain
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A cross-platform lyric-writing scaffold (Expo Router + NativeWind + Zustand) with syllable counts, rhyme highlights, and an offline rhyming panel.
 
-## Get started
+## Running locally
+- Install deps: `npm install`
+- Start dev server: `npx expo start` (press `i` for iOS simulator, `w` for web)
+- Run tests: `npm test`
 
-1. Install dependencies
+## Architecture
+- **Routing**: Expo Router with `/files`, `/files/[id]`, and `/files/new`. Desktop (`>=1024px`) uses a split pane (file list + editor); mobile splits into list/detail screens.
+- **State**: `store/useRefrainStore` (Zustand) holds files, selection, search query, and editor metadata with debounced autosave.
+- **Storage**: Repository abstraction in `lib/repo/lyricRepo.*` (expo-sqlite on native, IndexedDB via `idb` on web). Sorting is most-recently updated first; `clearAll` is available for tests/dev.
+- **Analysis pipeline**: `analysis/parse` tags section headers (`[Verse]` style) and annotations (`//`), `analysis/syllables` counts syllables, and `analysis/rhymes` groups end-of-line words for highlights.
+- **Rhymes**: Offline CMUdict-based phonetic lookup in `lib/rhyme/dictionary.ts` with `getRhymes` helper feeding the side panel.
+- **UI**: NativeWind styling; gutters show line numbers, syllable counts, and rhyme color markers. The rhyme panel toggles in the editor and supports copy-to-clipboard suggestions.
 
-   ```bash
-   npm install
-   ```
+## Notes
+- App name is “Refrain”. No auth/back-end; everything stays local.
+- Works on web and iOS via `npx expo start` (web with `w`, iOS with `i`).
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Rebuilding the rhyme dictionary
+- Source data: `data/cmudict.txt` (CMU Pronouncing Dictionary, public domain).
+- Generate the compact lookup tables: `npm run build:dict` (writes `lib/rhyme/cmudict.compact.json`).
