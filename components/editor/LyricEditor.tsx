@@ -148,16 +148,22 @@ export const LyricEditor = () => {
   const [lineHeights, setLineHeights] = useState<number[]>([]);
   const [textColumnWidth, setTextColumnWidth] = useState(0);
   const [badgeViewportHeight, setBadgeViewportHeight] = useState(0);
+  const scrollRef = useRef<ScrollView | null>(null);
   const selectionRef = useRef<{ start: number; end: number } | null>(null);
   const inputRef = useRef<TextInput | null>(null);
   const caretIndexRef = useRef(0);
   const bodyRef = useRef('');
+  const isDraggingRef = useRef(false);
+  const lastAutoScrollKey = useRef<string | null>(null);
   const BADGE_Y_OFFSET = 10;
   const BADGE_HEIGHT = 22;
   const BADGE_GAP = 6;
   const EDIT_PICKER_EST_HEIGHT = 44;
   const EDIT_MIN_GAP = 6;
   const GUTTER_NUMBER_Y_OFFSET = 4;
+  const VISIBILITY_MARGIN = 16;
+  const AUTO_SCROLL_EPSILON = 6;
+  const FALLBACK_PICKER_HEIGHT = 44;
 
   const {
     selectedFile,
@@ -594,6 +600,69 @@ export const LyricEditor = () => {
     [BADGE_GAP, BADGE_HEIGHT, BADGE_Y_OFFSET, getLineOffset, scrollOffset],
   );
 
+  useEffect(() => {
+    if (pickerMode !== 'new' || pickerLineIndex === null || overlayTop === null) {
+      lastAutoScrollKey.current = null;
+      return;
+    }
+    if (!viewportHeight) {
+      return;
+    }
+    if (isDraggingRef.current) {
+      return;
+    }
+
+    const pickerHeightWithFallback = pickerHeight || FALLBACK_PICKER_HEIGHT;
+    const absolutePickerTop = overlayTop + scrollOffset;
+    const absolutePickerBottom = absolutePickerTop + pickerHeightWithFallback;
+    const lineTop = getLineOffset(pickerLineIndex) + editorPaddingTop;
+    const lineBottom = lineTop + (fallbackHeights[pickerLineIndex] ?? editorLineHeight);
+    const desiredTop = Math.min(absolutePickerTop, lineTop);
+    const desiredBottom = Math.max(absolutePickerBottom, lineBottom);
+    const lowerBound = desiredBottom - (viewportHeight - VISIBILITY_MARGIN);
+    const upperBound = desiredTop - VISIBILITY_MARGIN;
+    const autoScrollKey = `${pickerLineIndex}-${pickerHeightWithFallback}-${Math.round(overlayTop)}-${Math.round(viewportHeight)}`;
+
+    if (lastAutoScrollKey.current === autoScrollKey) {
+      return;
+    }
+
+    let targetY = scrollOffset;
+    if (targetY < lowerBound) {
+      targetY = lowerBound;
+    } else if (targetY > upperBound) {
+      targetY = upperBound;
+    }
+
+    const extraBottomPadding = 24 + editorPaddingBottom + (showRhymePanel ? rhymePanelHeight : 0);
+    const estimatedContentHeight = gutterHeight + editorPaddingTop + editorPaddingBottom + extraBottomPadding;
+    const maxScroll = Math.max(0, estimatedContentHeight - viewportHeight);
+    targetY = Math.max(0, Math.min(targetY, maxScroll));
+
+    if (Math.abs(targetY - scrollOffset) < AUTO_SCROLL_EPSILON) {
+      lastAutoScrollKey.current = autoScrollKey;
+      return;
+    }
+
+    lastAutoScrollKey.current = autoScrollKey;
+    scrollRef.current?.scrollTo({ y: targetY, animated: true });
+  }, [
+    FALLBACK_PICKER_HEIGHT,
+    VISIBILITY_MARGIN,
+    AUTO_SCROLL_EPSILON,
+    gutterHeight,
+    pickerHeight,
+    pickerLineIndex,
+    pickerMode,
+    overlayTop,
+    viewportHeight,
+    scrollOffset,
+    getLineOffset,
+    fallbackHeights,
+    showRhymePanel,
+    rhymePanelHeight,
+  ]);
+
   if (!selectedFile) {
     return (
       <View className="flex-1 items-center justify-center rounded-xl bg-accentSoft px-6 py-12">
@@ -627,6 +696,7 @@ export const LyricEditor = () => {
               style={{ position: 'relative', overflow: 'hidden' }}
             >
               <ScrollView
+                ref={scrollRef}
                 style={{ flex: 1 }}
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={{
@@ -634,6 +704,15 @@ export const LyricEditor = () => {
                 }}
                 onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
                 onScroll={(event) => setScrollOffset(event.nativeEvent.contentOffset.y)}
+                onScrollBeginDrag={() => {
+                  isDraggingRef.current = true;
+                }}
+                onScrollEndDrag={() => {
+                  isDraggingRef.current = false;
+                }}
+                onMomentumScrollEnd={() => {
+                  isDraggingRef.current = false;
+                }}
                 scrollEventThrottle={16}
               >
                 <View className="flex-row">
