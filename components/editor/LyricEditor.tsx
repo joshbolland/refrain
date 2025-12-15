@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   NativeSyntheticEvent,
+  LayoutChangeEvent,
+  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -21,9 +23,9 @@ import {
   editorPaddingTop,
 } from './editorMetrics';
 import { TogglePill } from './TogglePill';
-import { getSectionStartLineIndices, isBlankLine } from '../../analysis/sections';
+import { isBlankLine } from '../../analysis/sections';
 import type { SectionType } from '../../types/lyricFile';
-import { SectionChipsRow } from './SectionChipsRow';
+import { SectionChipsRow, SECTION_TYPE_COLORS } from './SectionChipsRow';
 
 const isInBlankRun = (lines: string[], index: number): boolean => {
   const currentBlank = isBlankLine(lines[index] ?? '');
@@ -49,6 +51,17 @@ const findWordAtSelection = (text: string, position: number): string | null => {
 const getLineIndexAtChar = (text: string, position: number): number => {
   const before = text.slice(0, position);
   return before.split('\n').length - 1;
+};
+
+const getDisplayedLineNumbers = (lines: string[]): Array<number | null> => {
+  let counter = 0;
+  return lines.map((line) => {
+    if (isBlankLine(line)) {
+      return null;
+    }
+    counter += 1;
+    return counter;
+  });
 };
 
 const SAVE_MESSAGE_DURATION = 1500;
@@ -120,7 +133,10 @@ export const LyricEditor = () => {
   const [viewportHeight, setViewportHeight] = useState(0);
   const [lineNumberWidth, setLineNumberWidth] = useState(0);
   const [pickerLineIndex, setPickerLineIndex] = useState<number | null>(null);
+  const [pickerMode, setPickerMode] = useState<'new' | 'edit'>('new');
   const [pickerHeight, setPickerHeight] = useState(0);
+  const [lineHeights, setLineHeights] = useState<number[]>([]);
+  const [textColumnWidth, setTextColumnWidth] = useState(0);
   const selectionRef = useRef<{ start: number; end: number } | null>(null);
   const inputRef = useRef<TextInput | null>(null);
   const caretIndexRef = useRef(0);
@@ -162,9 +178,65 @@ export const LyricEditor = () => {
   }, [selectedFile, setActiveLineIndex, setEditorSelection, setSelectedWord]);
 
   const lines = useMemo(() => body.split('\n'), [body]);
-  const gutterHeight = Math.max(inputHeight, editorLineHeight * lines.length);
+  const displayedLineNumbers = useMemo(() => getDisplayedLineNumbers(lines), [lines]);
+  useEffect(() => {
+    setLineHeights((prev) => {
+      if (prev.length === lines.length) {
+        return prev;
+      }
+      const next = new Array(lines.length);
+      for (let i = 0; i < lines.length; i += 1) {
+        next[i] = prev[i] ?? editorLineHeight;
+      }
+      return next;
+    });
+  }, [lines.length]);
+  const fallbackHeights = useMemo(
+    () => Array.from({ length: lines.length }, (_, index) => lineHeights[index] ?? editorLineHeight),
+    [lineHeights, lines.length],
+  );
+  const yOffsets = useMemo(() => {
+    const offsets = new Array(fallbackHeights.length + 1).fill(0);
+    for (let i = 0; i < fallbackHeights.length; i += 1) {
+      offsets[i + 1] = offsets[i] + fallbackHeights[i];
+    }
+    return offsets;
+  }, [fallbackHeights]);
+  const getLineOffset = useCallback(
+    (index: number) => (index >= 0 && index < yOffsets.length ? yOffsets[index] : index * editorLineHeight),
+    [yOffsets],
+  );
+  const contentHeight = yOffsets[yOffsets.length - 1] ?? editorLineHeight * lines.length;
+  const gutterHeight = Math.max(inputHeight, contentHeight, editorLineHeight * lines.length);
   const targetRhymeWord = selectedWord;
   const sectionTypes = selectedFile?.sectionTypes ?? {};
+  const firstNonBlankLineIndex = useMemo(
+    () => lines.findIndex((line) => !isBlankLine(line)),
+    [lines],
+  );
+
+  const sectionBadges = useMemo(() => {
+    if (lines.length === 0) {
+      return [];
+    }
+    return Object.entries(sectionTypes)
+      .map(([key, type]) => {
+        const index = Number(key);
+        return Number.isInteger(index) ? { index, type } : null;
+      })
+      .filter((entry): entry is { index: number; type: SectionType } => entry !== null)
+      .filter(({ index }) => index >= 0 && index < lines.length)
+      .filter(({ index }) => {
+        if (firstNonBlankLineIndex === -1) {
+          return false;
+        }
+        if (index === firstNonBlankLineIndex) {
+          return true;
+        }
+        return index > 0 && isBlankLine(lines[index - 1]);
+      })
+      .sort((a, b) => a.index - b.index);
+  }, [firstNonBlankLineIndex, lines, sectionTypes]);
 
   const evaluatePickerOpen = useCallback(
     (bodyValue: string, caret: number) => {
@@ -178,29 +250,7 @@ export const LyricEditor = () => {
   const handleChangeBody = (text: string) => {
     bodyRef.current = text;
     setBody(text);
-    const validStartIndices = new Set(getSectionStartLineIndices(text));
-    const existingSectionTypes = selectedFile?.sectionTypes ?? {};
-
-    const prunedSectionTypes = Object.entries(existingSectionTypes).reduce<Record<number, SectionType>>(
-      (acc, [key, value]) => {
-        const index = Number(key);
-        if (Number.isInteger(index) && validStartIndices.has(index)) {
-          acc[index] = value;
-        }
-        return acc;
-      },
-      {},
-    );
-
-    const sectionTypesChanged =
-      Object.keys(prunedSectionTypes).length !== Object.keys(existingSectionTypes).length ||
-      Object.entries(prunedSectionTypes).some(
-        ([key, value]) => existingSectionTypes[Number(key)] !== value,
-      );
-
-    const patch = sectionTypesChanged ? { body: text, sectionTypes: prunedSectionTypes } : { body: text };
-
-    void updateSelectedFile(patch);
+    void updateSelectedFile({ body: text });
     const caret = selectionRef.current?.start ?? caretIndexRef.current ?? caretIndex;
     evaluatePickerOpen(text, caret);
   };
@@ -229,6 +279,16 @@ export const LyricEditor = () => {
       setInputHeight((prev) => (prev === nextHeight ? prev : Math.max(nextHeight, editorLineHeight * 6)));
     }
   };
+  const handleMeasuredLineHeight = useCallback((index: number, height: number) => {
+    setLineHeights((prev) => {
+      if (prev[index] === height) {
+        return prev;
+      }
+      const next = [...prev];
+      next[index] = height;
+      return next;
+    });
+  }, []);
 
   const applySectionType = useCallback(
     (lineIndex: number, type: SectionType) => {
@@ -241,6 +301,7 @@ export const LyricEditor = () => {
       };
       if (selectedFile.sectionTypes?.[lineIndex] === type) {
         setPickerLineIndex(null);
+        setPickerMode('new');
         return;
       }
       if (__DEV__) {
@@ -249,6 +310,7 @@ export const LyricEditor = () => {
       }
       void updateSelectedFile({ sectionTypes: nextSectionTypes });
       setPickerLineIndex(null);
+      setPickerMode('new');
     },
     [selectedFile, updateSelectedFile],
   );
@@ -256,12 +318,14 @@ export const LyricEditor = () => {
   const closePicker = useCallback(
     (options?: { defaultToVerse?: boolean; lineIndex?: number }) => {
       const targetLineIndex = options?.lineIndex ?? pickerLineIndex;
+      const shouldDefault = options?.defaultToVerse && pickerMode === 'new';
       setPickerLineIndex(null);
-      if (options?.defaultToVerse && typeof targetLineIndex === 'number') {
+      setPickerMode('new');
+      if (shouldDefault && typeof targetLineIndex === 'number') {
         applySectionType(targetLineIndex, 'verse');
       }
     },
-    [applySectionType, pickerLineIndex],
+    [applySectionType, pickerLineIndex, pickerMode],
   );
 
   useEffect(() => {
@@ -285,7 +349,7 @@ export const LyricEditor = () => {
 
     const previousLineBlank = pickerLineIndex > 0 && isBlankLine(lines[pickerLineIndex - 1]);
     if (!previousLineBlank) {
-      setPickerLineIndex(null);
+      closePicker({ defaultToVerse: pickerMode === 'new', lineIndex: pickerLineIndex });
       return;
     }
 
@@ -293,7 +357,7 @@ export const LyricEditor = () => {
     if (!isBlankLine(currentLine)) {
       closePicker({ defaultToVerse: true, lineIndex: pickerLineIndex });
     }
-  }, [closePicker, lines, pickerLineIndex]);
+  }, [closePicker, lines, pickerLineIndex, pickerMode]);
 
   useEffect(() => {
     if (pickerLineIndex === null) {
@@ -315,8 +379,8 @@ export const LyricEditor = () => {
       return;
     }
 
-    closePicker({ defaultToVerse: true, lineIndex: pickerLineIndex });
-  }, [closePicker, currentLineIndex, lines, pickerLineIndex]);
+    closePicker({ defaultToVerse: pickerMode === 'new', lineIndex: pickerLineIndex });
+  }, [closePicker, currentLineIndex, lines, pickerLineIndex, pickerMode]);
 
   useEffect(() => {
     if (currentLineIndex >= lines.length) {
@@ -337,6 +401,7 @@ export const LyricEditor = () => {
     const shouldOpen = currentLineIndex > 0 && readyTypingLine && !hasType;
 
     if (shouldOpen && pickerLineIndex !== currentLineIndex) {
+      setPickerMode('new');
       setPickerLineIndex(currentLineIndex);
       return;
     }
@@ -370,13 +435,16 @@ export const LyricEditor = () => {
     if (pickerLineIndex === null) {
       return null;
     }
-    const baseTop = pickerLineIndex * editorLineHeight - scrollOffset + editorPaddingTop;
+    const baseTop = getLineOffset(pickerLineIndex) - scrollOffset + editorPaddingTop;
     if (!viewportHeight || !pickerHeight) {
       return Math.max(0, baseTop);
     }
     const maxTop = viewportHeight - pickerHeight - 8;
     return Math.min(Math.max(0, baseTop), maxTop);
-  }, [pickerHeight, pickerLineIndex, scrollOffset, viewportHeight]);
+  }, [getLineOffset, pickerHeight, pickerLineIndex, scrollOffset, viewportHeight]);
+
+  const activePickerType =
+    pickerLineIndex !== null && pickerMode === 'edit' ? sectionTypes[pickerLineIndex] ?? null : null;
 
   if (!selectedFile) {
     return (
@@ -408,6 +476,7 @@ export const LyricEditor = () => {
           <View className="flex-1 px-5 pb-4">
             <View className="flex-1 rounded-lg bg-white" style={{ position: 'relative' }}>
               <ScrollView
+                style={{ flex: 1 }}
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={{
                   paddingBottom: 24 + editorPaddingBottom + (showRhymePanel ? rhymePanelHeight : 0),
@@ -429,21 +498,23 @@ export const LyricEditor = () => {
                     {lines.map((_, index) => (
                       <Text
                         key={`line-${index}`}
+                        numberOfLines={1}
                         style={{
-                          height: editorLineHeight,
+                          height: fallbackHeights[index],
                           lineHeight: editorLineHeight,
                           fontSize: 12,
                           color: '#9CA3AF',
                         }}
                         className="text-right font-mono"
                       >
-                        {index + 1}
+                        {displayedLineNumbers[index] ?? ''}
                       </Text>
                     ))}
                   </View>
                   <View
                     className="flex-1"
                     style={{ paddingTop: editorPaddingTop, paddingBottom: editorPaddingBottom }}
+                    onLayout={(event: LayoutChangeEvent) => setTextColumnWidth(event.nativeEvent.layout.width)}
                   >
                     <TextInput
                       ref={inputRef}
@@ -454,8 +525,8 @@ export const LyricEditor = () => {
                       onSelectionChange={handleSelectionChange}
                       onContentSizeChange={handleContentSizeChange}
                       style={{
-                        minHeight: editorLineHeight * 6,
-                        height: gutterHeight,
+                        minHeight: gutterHeight,
+                        flexGrow: 1,
                         lineHeight: editorLineHeight,
                         fontSize: editorFontSize,
                         paddingHorizontal: editorHorizontalPadding,
@@ -475,6 +546,74 @@ export const LyricEditor = () => {
                   </View>
                 </View>
               </ScrollView>
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  opacity: 0,
+                  left: lineNumberWidth,
+                  right: 0,
+                  paddingTop: editorPaddingTop,
+                  paddingBottom: editorPaddingBottom,
+                  paddingHorizontal: editorHorizontalPadding,
+                }}
+              >
+                {lines.map((line, index) => (
+                  <Text
+                    key={`measure-${index}`}
+                    className="font-mono"
+                    style={{
+                      width: textColumnWidth || undefined,
+                      lineHeight: editorLineHeight,
+                      fontSize: editorFontSize,
+                    }}
+                    onLayout={(event) => handleMeasuredLineHeight(index, event.nativeEvent.layout.height)}
+                  >
+                    {line.length === 0 ? ' ' : line}
+                  </Text>
+                ))}
+              </View>
+              <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, left: 0, right: 0 }}>
+                {sectionBadges.map(({ index, type }) => {
+                  const colors = SECTION_TYPE_COLORS[type];
+                  const baseTop = getLineOffset(index) - scrollOffset + editorPaddingTop;
+                  const badgeHeight = 22;
+                  const gap = 6;
+                  const top = Math.max(4, baseTop - badgeHeight - gap);
+                  return (
+                    <View
+                      key={`badge-${index}`}
+                      pointerEvents="box-none"
+                      style={{
+                        position: 'absolute',
+                        top,
+                        left: lineNumberWidth + editorHorizontalPadding,
+                      }}
+                    >
+                      <Pressable
+                        pointerEvents="auto"
+                        onPress={() => {
+                          setPickerMode('edit');
+                          setPickerLineIndex(index);
+                        }}
+                        className="rounded-full px-2.5 py-1"
+                        style={{
+                          backgroundColor: colors.tint,
+                          borderColor: colors.accent,
+                          borderWidth: 1,
+                        }}
+                      >
+                        <Text
+                          className="text-[11px] font-semibold uppercase tracking-[0.12em]"
+                          style={{ color: colors.accent }}
+                        >
+                          {type.replace('-', ' ').toUpperCase()}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </View>
               {pickerLineIndex !== null && overlayTop !== null && (
                 <View
                   pointerEvents="box-none"
@@ -488,8 +627,8 @@ export const LyricEditor = () => {
                 >
                   <SectionChipsRow
                     startLineIndex={pickerLineIndex}
-                    mode="new"
-                    activeType={null}
+                    mode={pickerMode}
+                    activeType={activePickerType}
                     onSelect={handleSelectSectionType}
                   />
                 </View>

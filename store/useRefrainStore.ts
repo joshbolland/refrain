@@ -2,6 +2,7 @@ import { create } from 'zustand';
 
 import { getLyricRepository } from '../lib/repo/lyricRepo';
 import type { LyricFile, LyricFileId } from '../types/lyricFile';
+import { cleanupSectionTypes } from '../analysis/sections';
 
 type SelectionRange = { start: number; end: number };
 
@@ -49,6 +50,21 @@ const generateId = (): LyricFileId => {
 };
 
 const sortFiles = (files: LyricFile[]): LyricFile[] => [...files].sort((a, b) => b.updatedAt - a.updatedAt);
+
+const sectionTypesEqual = (
+  a: Record<number, string> | undefined,
+  b: Record<number, string> | undefined,
+): boolean => {
+  if (a === b) {
+    return true;
+  }
+  const aKeys = Object.keys(a ?? {});
+  const bKeys = Object.keys(b ?? {});
+  if (aKeys.length !== bKeys.length) {
+    return false;
+  }
+  return aKeys.every((key) => (a ?? {})[Number(key)] === (b ?? {})[Number(key)]);
+};
 
 export const useRefrainStore = create<RefrainState>((set, get) => ({
   files: [],
@@ -160,9 +176,19 @@ export const useRefrainStore = create<RefrainState>((set, get) => ({
       sectionTypes: files[index].sectionTypes ?? {},
     };
 
+    const nextBody = patch.body ?? baseFile.body;
+    const rawSectionTypes = patch.sectionTypes ?? baseFile.sectionTypes ?? {};
+    const cleanedSectionTypes = cleanupSectionTypes(nextBody, rawSectionTypes);
+    const nextSectionTypes =
+      sectionTypesEqual(rawSectionTypes, cleanedSectionTypes) && patch.sectionTypes === undefined
+        ? baseFile.sectionTypes ?? {}
+        : cleanedSectionTypes;
+
     const updated: LyricFile = {
       ...baseFile,
       ...patch,
+      body: nextBody,
+      sectionTypes: nextSectionTypes,
       updatedAt: Date.now(),
     };
 
