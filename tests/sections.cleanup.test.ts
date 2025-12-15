@@ -1,4 +1,11 @@
-import { cleanupSectionTypes, ensureDefaultSectionTypes } from '../analysis/sections';
+import {
+  cleanupSectionTypes,
+  ensureDefaultSectionTypes,
+  extractBlockText,
+  findPreviousChorusStart,
+  findPreviousSectionStartOfType,
+  getSectionBlockRange,
+} from '../analysis/sections';
 import type { SectionType } from '../types/lyricFile';
 
 describe('cleanupSectionTypes', () => {
@@ -73,6 +80,39 @@ describe('cleanupSectionTypes', () => {
       const result = ensureDefaultSectionTypes(body, sectionTypes);
 
       expect(result).toEqual({ 0: 'verse', 3: 'chorus' });
+    });
+  });
+
+  describe('chorus helpers', () => {
+    it('finds previous chorus start before target', () => {
+      const body = 'V1\n\nChorus line\n\nVerse 2';
+      const sectionTypes: Record<number, SectionType> = { 0: 'verse', 2: 'chorus', 4: 'verse' };
+
+      expect(findPreviousChorusStart(body, sectionTypes, 4)).toBe(2);
+      expect(findPreviousChorusStart(body, sectionTypes, 2)).toBeNull();
+    });
+
+    it('finds previous section start of type', () => {
+      const body = 'V1\n\nChorus line\n\nPre-chorus A\n\nVerse 2';
+      const sectionTypes: Record<number, SectionType> = {
+        0: 'verse',
+        2: 'chorus',
+        4: 'pre-chorus',
+        6: 'verse',
+      };
+
+      expect(findPreviousSectionStartOfType(body, sectionTypes, 6, 'pre-chorus')).toBe(4);
+      expect(findPreviousSectionStartOfType(body, sectionTypes, 4, 'pre-chorus')).toBeNull();
+    });
+
+    it('extracts section block text', () => {
+      const lines = ['V1 line', '', 'Chorus A', 'Chorus B', '', 'Bridge'];
+      const body = lines.join('\n');
+      const range = getSectionBlockRange(body, 2);
+      const block = extractBlockText(lines, range);
+
+      expect(range).toEqual({ start: 2, endExclusive: 5 });
+      expect(block).toBe('Chorus A\nChorus B\n');
     });
   });
 });

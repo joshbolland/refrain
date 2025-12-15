@@ -57,6 +57,44 @@ export const cleanupSectionTypes = (
   return cleaned;
 };
 
+export const findPreviousSectionStartOfType = (
+  body: string,
+  sectionTypes: Record<number, SectionType>,
+  targetStartIndex: number,
+  targetType: SectionType,
+): number | null => {
+  const starts = Array.from(getValidSectionStartSet(body)).filter((index) => index < targetStartIndex);
+  let candidate: number | null = null;
+  starts.forEach((index) => {
+    if (index < targetStartIndex && sectionTypes[index] === targetType) {
+      candidate = index;
+    }
+  });
+  return candidate;
+};
+
+export const findPreviousChorusStart = (
+  body: string,
+  sectionTypes: Record<number, SectionType>,
+  targetStartIndex: number,
+): number | null => findPreviousSectionStartOfType(body, sectionTypes, targetStartIndex, 'chorus');
+
+export const getSectionBlockRange = (
+  body: string,
+  startIndex: number,
+): { start: number; endExclusive: number } => {
+  const lines = body.split('\n');
+  const starts = Array.from(getValidSectionStartSet(body)).filter((index) => index >= 0).sort((a, b) => a - b);
+  const nextStart = starts.find((value) => value > startIndex);
+  const endExclusive = nextStart !== undefined ? nextStart : lines.length;
+  return { start: startIndex, endExclusive };
+};
+
+export const extractBlockText = (lines: string[], range: { start: number; endExclusive: number }): string => {
+  const slice = lines.slice(range.start, range.endExclusive);
+  return slice.join('\n');
+};
+
 export const ensureDefaultSectionTypes = (
   body: string,
   sectionTypes: Record<number, SectionType>,

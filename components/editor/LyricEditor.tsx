@@ -3,6 +3,8 @@ import {
   LayoutChangeEvent,
   NativeSyntheticEvent,
   Pressable,
+  Alert,
+  Platform,
   ScrollView,
   Text,
   TextInput,
@@ -13,7 +15,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { isBlankLine } from '../../analysis/sections';
+import {
+  extractBlockText,
+  findPreviousChorusStart,
+  findPreviousSectionStartOfType,
+  getSectionBlockRange,
+  isBlankLine,
+} from '../../analysis/sections';
 import { useRefrainStore } from '../../store/useRefrainStore';
 import type { SectionType } from '../../types/lyricFile';
 import { RhymePanel } from '../rhyme/RhymePanel';
@@ -420,20 +428,127 @@ export const LyricEditor = () => {
     }
   }, [currentLineIndex, lines, pickerLineIndex, sectionTypes]);
 
+  const promptRepeatChoice = useCallback(async (targetType: SectionType): Promise<'repeat' | 'new' | 'cancel'> => {
+    const label = targetType === 'pre-chorus' ? 'pre-chorus' : 'chorus';
+    if (Platform.OS === 'web') {
+      const choice =
+        (window.prompt(`Repeat existing ${label}? Type repeat / new / cancel`, 'repeat') ?? '').toLowerCase();
+      if (choice.startsWith('rep')) {
+        return 'repeat';
+      }
+      if (choice.startsWith('new')) {
+        return 'new';
+      }
+      return 'cancel';
+    }
+
+    return new Promise((resolve) => {
+      Alert.alert(`Repeat existing ${label}?`, undefined, [
+        { text: 'Cancel', style: 'cancel', onPress: () => resolve('cancel') },
+        { text: 'New', onPress: () => resolve('new') },
+        { text: 'Repeat', style: 'default', onPress: () => resolve('repeat') },
+      ]);
+    });
+  }, []);
+
   const handleSelectSectionType = useCallback(
-    (type: SectionType) => {
-      const targetIndex = editingSectionLineIndex ?? pickerLineIndex;
-      if (targetIndex === null) {
+    async (type: SectionType) => {
+      // Edit overlay flow
+      if (editingSectionLineIndex !== null) {
+        if (__DEV__) {
+          // eslint-disable-next-line no-console
+          console.log('Section picker select', { targetLineIndex: editingSectionLineIndex, type });
+        }
+        applySectionType(editingSectionLineIndex, type);
+        setEditingSectionLineIndex(null);
+        setPickerLineIndex(null);
+        setPickerMode('new');
+        requestAnimationFrame(() => {
+          inputRef.current?.focus();
+          if (selectionRef.current) {
+            inputRef.current?.setNativeProps({ selection: selectionRef.current });
+          }
+        });
         return;
       }
+
+      // New section flow
+      if (pickerMode !== 'new' || pickerLineIndex === null) {
+        return;
+      }
+
+      if (type === 'chorus' || type === 'pre-chorus') {
+        const finder =
+          type === 'chorus'
+            ? findPreviousChorusStart
+            : (bodyValue: string, types: Record<number, SectionType>, target: number) =>
+                findPreviousSectionStartOfType(bodyValue, types, target, 'pre-chorus');
+        const prevStart = finder(bodyRef.current, sectionTypes, pickerLineIndex);
+        if (prevStart !== null) {
+          const choice = await promptRepeatChoice(type);
+          if (choice === 'cancel') {
+            return;
+          }
+          if (choice === 'repeat') {
+            const lines = bodyRef.current.split('\n');
+            const range = getSectionBlockRange(bodyRef.current, prevStart);
+            const chorusLines = lines.slice(range.start, range.endExclusive);
+            const target = pickerLineIndex;
+            const targetLine = lines[target] ?? '';
+            const replaceTarget = isBlankLine(targetLine);
+            const newLines = replaceTarget
+              ? [...lines.slice(0, target), ...chorusLines, ...lines.slice(target + 1)]
+              : [...lines.slice(0, target), ...chorusLines, ...lines.slice(target)];
+            const delta = newLines.length - lines.length;
+
+            const nextSectionTypes: Record<number, SectionType> = {};
+            Object.entries(sectionTypes).forEach(([key, value]) => {
+              const idx = Number(key);
+              if (!Number.isInteger(idx)) {
+                return;
+              }
+              if (idx < target) {
+                nextSectionTypes[idx] = value;
+              } else if (idx > target) {
+                nextSectionTypes[idx + delta] = value;
+              }
+            });
+            nextSectionTypes[target] = type;
+
+            const newBody = newLines.join('\n');
+            setBody(newBody);
+            bodyRef.current = newBody;
+            void updateSelectedFile({ body: newBody, sectionTypes: nextSectionTypes });
+            setPickerLineIndex(null);
+            setPickerMode('new');
+
+            const caretLine = target + chorusLines.length - 1;
+            const caretCol = chorusLines.length > 0 ? chorusLines[chorusLines.length - 1].length : 0;
+            let caretPos = 0;
+            for (let i = 0; i < caretLine; i += 1) {
+              caretPos += newLines[i].length + 1;
+            }
+            caretPos += caretCol;
+            const selection = { start: caretPos, end: caretPos };
+            selectionRef.current = selection;
+            setCaretIndex(caretPos);
+            setCurrentLineIndex(caretLine);
+            setActiveLineIndex(caretLine);
+            requestAnimationFrame(() => {
+              inputRef.current?.focus();
+              inputRef.current?.setNativeProps({ selection });
+            });
+            return;
+          }
+        }
+      }
+
       if (__DEV__) {
         // eslint-disable-next-line no-console
-        console.log('Section picker select', { targetLineIndex: targetIndex, type });
+        console.log('Section picker select', { targetLineIndex: pickerLineIndex, type });
       }
-      applySectionType(targetIndex, type);
+      applySectionType(pickerLineIndex, type);
       setEditingSectionLineIndex(null);
-      setPickerLineIndex(null);
-      setPickerMode('new');
       requestAnimationFrame(() => {
         inputRef.current?.focus();
         if (selectionRef.current) {
@@ -441,7 +556,17 @@ export const LyricEditor = () => {
         }
       });
     },
-    [applySectionType, editingSectionLineIndex, pickerLineIndex],
+    [
+      applySectionType,
+      bodyRef,
+      editingSectionLineIndex,
+      pickerLineIndex,
+      pickerMode,
+      promptRepeatChoice,
+      sectionTypes,
+      setActiveLineIndex,
+      setCaretIndex,
+    ],
   );
 
   const overlayTop = useMemo(() => {
