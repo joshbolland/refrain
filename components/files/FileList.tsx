@@ -77,18 +77,14 @@ export const FileList = ({ isDesktop = false }: FileListProps) => {
             <Text className="mt-2 text-3xl font-semibold text-ink">Your refrains</Text>
           </View>
           <Pressable
-            className="rounded-full px-3 py-1.5"
+            className="h-10 w-10 items-center justify-center rounded-full border border-accent bg-accentSoft"
             style={({ pressed }) => ({
-              backgroundColor: pressed ? '#D7DDFF' : '#E8EBFF',
-              borderColor: '#C7D1FF',
-              borderWidth: 1,
+              backgroundColor: pressed ? '#e1e5ff' : undefined,
               transform: [{ translateY: pressed ? 1 : 0 }],
             })}
             onPress={handleCreate}
           >
-            <Text className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7C8FFF]">
-              New
-            </Text>
+            <Text className="text-xl font-bold text-accent">+</Text>
           </Pressable>
         </View>
 
