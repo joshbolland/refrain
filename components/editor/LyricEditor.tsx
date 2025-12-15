@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  NativeSyntheticEvent,
   LayoutChangeEvent,
+  NativeSyntheticEvent,
   Pressable,
   ScrollView,
   Text,
@@ -13,7 +13,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { isBlankLine } from '../../analysis/sections';
 import { useRefrainStore } from '../../store/useRefrainStore';
+import type { SectionType } from '../../types/lyricFile';
 import { RhymePanel } from '../rhyme/RhymePanel';
 import {
   editorFontSize,
@@ -22,10 +24,8 @@ import {
   editorPaddingBottom,
   editorPaddingTop,
 } from './editorMetrics';
+import { SECTION_TYPE_COLORS, SectionChipsRow } from './SectionChipsRow';
 import { TogglePill } from './TogglePill';
-import { isBlankLine } from '../../analysis/sections';
-import type { SectionType } from '../../types/lyricFile';
-import { SectionChipsRow, SECTION_TYPE_COLORS } from './SectionChipsRow';
 
 const isInBlankRun = (lines: string[], index: number): boolean => {
   const currentBlank = isBlankLine(lines[index] ?? '');
@@ -53,7 +53,7 @@ const getLineIndexAtChar = (text: string, position: number): number => {
   return before.split('\n').length - 1;
 };
 
-const getDisplayedLineNumbers = (lines: string[]): Array<number | null> => {
+const getDisplayedLineNumbers = (lines: string[]): (number | null)[] => {
   let counter = 0;
   return lines.map((line) => {
     if (isBlankLine(line)) {
@@ -141,6 +141,8 @@ export const LyricEditor = () => {
   const inputRef = useRef<TextInput | null>(null);
   const caretIndexRef = useRef(0);
   const bodyRef = useRef('');
+  const BADGE_Y_OFFSET = 10;
+  const GUTTER_NUMBER_Y_OFFSET = 4;
 
   const {
     selectedFile,
@@ -305,7 +307,7 @@ export const LyricEditor = () => {
         return;
       }
       if (__DEV__) {
-        // eslint-disable-next-line no-console
+
         console.log('Section picker apply', { lineIndex, type, value: nextSectionTypes[lineIndex] });
       }
       void updateSelectedFile({ sectionTypes: nextSectionTypes });
@@ -417,7 +419,7 @@ export const LyricEditor = () => {
         return;
       }
       if (__DEV__) {
-        // eslint-disable-next-line no-console
+
         console.log('Section picker select', { targetLineIndex: pickerLineIndex, type });
       }
       applySectionType(pickerLineIndex, type);
@@ -504,6 +506,7 @@ export const LyricEditor = () => {
                           lineHeight: editorLineHeight,
                           fontSize: 12,
                           color: '#9CA3AF',
+                          paddingTop: GUTTER_NUMBER_Y_OFFSET,
                         }}
                         className="text-right font-mono"
                       >
@@ -579,7 +582,7 @@ export const LyricEditor = () => {
                   const baseTop = getLineOffset(index) - scrollOffset + editorPaddingTop;
                   const badgeHeight = 22;
                   const gap = 6;
-                  const top = Math.max(4, baseTop - badgeHeight - gap);
+                  const top = Math.max(4, baseTop - badgeHeight - gap + BADGE_Y_OFFSET);
                   return (
                     <View
                       key={`badge-${index}`}
