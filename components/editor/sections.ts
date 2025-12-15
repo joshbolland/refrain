@@ -1,4 +1,4 @@
-export type SectionType = 'verse' | 'chorus' | 'bridge' | 'other';
+export type { SectionType } from '../../types/lyricFile';
 
 export type RenderRow =
   | { kind: 'badge'; sectionType: SectionType; sectionStartLineIndex: number }

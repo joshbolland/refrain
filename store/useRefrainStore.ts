@@ -26,7 +26,7 @@ interface RefrainState {
   selectFile(id: LyricFileId | null): void;
   setQuery(q: string): void;
   createNewFile(): Promise<LyricFile>;
-  updateSelectedFile(patch: { title?: string; body?: string }): Promise<void>;
+  updateSelectedFile(patch: { title?: string; body?: string; sectionTypes?: LyricFile['sectionTypes'] }): Promise<void>;
   saveSelectedFile(): Promise<void>;
   deleteFile(id: LyricFileId): Promise<void>;
   deleteSelectedFile(): Promise<void>;
@@ -137,6 +137,7 @@ export const useRefrainStore = create<RefrainState>((set, get) => ({
       body: '',
       createdAt: timestamp,
       updatedAt: timestamp,
+      sectionTypes: {},
     };
     set((state) => ({ files: sortFiles([newFile, ...state.files]), selectedId: newFile.id }));
     await repo.upsertFile(newFile);
@@ -154,8 +155,13 @@ export const useRefrainStore = create<RefrainState>((set, get) => ({
       return;
     }
 
-    const updated: LyricFile = {
+    const baseFile: LyricFile = {
       ...files[index],
+      sectionTypes: files[index].sectionTypes ?? {},
+    };
+
+    const updated: LyricFile = {
+      ...baseFile,
       ...patch,
       updatedAt: Date.now(),
     };

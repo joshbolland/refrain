@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Animated, Pressable, ScrollView, Text } from 'react-native';
 
-import { SectionType } from './sections';
+import type { SectionType } from '../../types/lyricFile';
 
 type ChipOption = { value: SectionType; label: string };
 
@@ -16,6 +16,9 @@ const CHIP_OPTIONS: ChipOption[] = [
   { value: 'verse', label: 'Verse' },
   { value: 'chorus', label: 'Chorus' },
   { value: 'bridge', label: 'Bridge' },
+  { value: 'pre-chorus', label: 'Pre-chorus' },
+  { value: 'intro', label: 'Intro' },
+  { value: 'outro', label: 'Outro' },
   { value: 'other', label: 'Other' },
 ];
 
@@ -23,6 +26,9 @@ export const SECTION_TYPE_COLORS: Record<SectionType, { accent: string; tint: st
   verse: { accent: '#9DACFF', tint: '#EEF0FF' },
   chorus: { accent: '#F4C95D', tint: '#FFF4D6' },
   bridge: { accent: '#4CC9B0', tint: '#D9FBF4' },
+  'pre-chorus': { accent: '#FF9F8A', tint: '#FFE6E0' },
+  intro: { accent: '#65B9FF', tint: '#E0F2FF' },
+  outro: { accent: '#B79BFF', tint: '#F0E9FF' },
   other: { accent: '#9CA3AF', tint: '#F3F4F6' },
 };
 
@@ -53,15 +59,10 @@ export const SectionChipsRow = ({
     return null;
   }
 
-  useEffect(() => {
-    if (__DEV__) {
-      console.log('SectionChipsRow render', { startLineIndex, mode, activeType });
-    }
-  }, [activeType, mode, startLineIndex]);
-
   return (
     <Animated.View
       className={mode === 'edit' ? 'ml-3' : undefined}
+      pointerEvents="auto"
       style={{ opacity, transform: [{ translateX: translate }] }}
     >
       <ScrollView
@@ -76,16 +77,13 @@ export const SectionChipsRow = ({
             <Pressable
               key={value}
               onPress={() => {
-                if (__DEV__) {
-                  console.log('SectionChipsRow select', { startLineIndex, nextType: value });
-                }
                 onSelect(value);
               }}
               className="rounded-full px-3 py-1.5"
               style={({ pressed }) => ({
                 backgroundColor: isActive ? colors.accent : colors.tint,
                 borderColor: colors.accent,
-                borderWidth: 1,
+                borderWidth: isActive ? 1.5 : 1,
                 opacity: pressed ? 0.9 : 1,
                 transform: [{ translateY: pressed ? 1 : 0 }],
               })}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   NativeSyntheticEvent,
   ScrollView,
@@ -21,6 +21,19 @@ import {
   editorPaddingTop,
 } from './editorMetrics';
 import { TogglePill } from './TogglePill';
+import { getSectionStartLineIndices, isBlankLine } from '../../analysis/sections';
+import type { SectionType } from '../../types/lyricFile';
+import { SectionChipsRow } from './SectionChipsRow';
+
+const isInBlankRun = (lines: string[], index: number): boolean => {
+  const currentBlank = isBlankLine(lines[index] ?? '');
+  if (!currentBlank) {
+    return false;
+  }
+  const previousBlank = index > 0 ? isBlankLine(lines[index - 1]) : false;
+  const nextBlank = index + 1 < lines.length ? isBlankLine(lines[index + 1]) : false;
+  return previousBlank || nextBlank;
+};
 
 const findWordAtSelection = (text: string, position: number): string | null => {
   if (position < 0) {
@@ -33,7 +46,7 @@ const findWordAtSelection = (text: string, position: number): string | null => {
   return word.length > 0 ? word.toLowerCase() : null;
 };
 
-const findLineIndex = (text: string, position: number): number => {
+const getLineIndexAtChar = (text: string, position: number): number => {
   const before = text.slice(0, position);
   return before.split('\n').length - 1;
 };
@@ -101,6 +114,17 @@ export const LyricEditor = () => {
   const [body, setBody] = useState('');
   const [inputHeight, setInputHeight] = useState(editorLineHeight * 8);
   const [rhymePanelHeight, setRhymePanelHeight] = useState(0);
+  const [currentLineIndex, setCurrentLineIndex] = useState(0);
+  const [caretIndex, setCaretIndex] = useState(0);
+  const [scrollOffset, setScrollOffset] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const [lineNumberWidth, setLineNumberWidth] = useState(0);
+  const [pickerLineIndex, setPickerLineIndex] = useState<number | null>(null);
+  const [pickerHeight, setPickerHeight] = useState(0);
+  const selectionRef = useRef<{ start: number; end: number } | null>(null);
+  const inputRef = useRef<TextInput | null>(null);
+  const caretIndexRef = useRef(0);
+  const bodyRef = useRef('');
 
   const {
     selectedFile,
@@ -125,33 +149,77 @@ export const LyricEditor = () => {
   useEffect(() => {
     if (!selectedFile) {
       setBody('');
+      bodyRef.current = '';
       setEditorSelection(null);
       setSelectedWord(null);
       setActiveLineIndex(-1);
+      setPickerLineIndex(null);
       return;
     }
     setBody(selectedFile.body ?? '');
+    bodyRef.current = selectedFile.body ?? '';
+    setPickerLineIndex(null);
   }, [selectedFile, setActiveLineIndex, setEditorSelection, setSelectedWord]);
 
   const lines = useMemo(() => body.split('\n'), [body]);
   const gutterHeight = Math.max(inputHeight, editorLineHeight * lines.length);
   const targetRhymeWord = selectedWord;
+  const sectionTypes = selectedFile?.sectionTypes ?? {};
+
+  const evaluatePickerOpen = useCallback(
+    (bodyValue: string, caret: number) => {
+      const lineIndex = getLineIndexAtChar(bodyValue, caret);
+      setCurrentLineIndex(lineIndex);
+      return lineIndex;
+    },
+    [],
+  );
 
   const handleChangeBody = (text: string) => {
+    bodyRef.current = text;
     setBody(text);
-    void updateSelectedFile({ body: text });
+    const validStartIndices = new Set(getSectionStartLineIndices(text));
+    const existingSectionTypes = selectedFile?.sectionTypes ?? {};
+
+    const prunedSectionTypes = Object.entries(existingSectionTypes).reduce<Record<number, SectionType>>(
+      (acc, [key, value]) => {
+        const index = Number(key);
+        if (Number.isInteger(index) && validStartIndices.has(index)) {
+          acc[index] = value;
+        }
+        return acc;
+      },
+      {},
+    );
+
+    const sectionTypesChanged =
+      Object.keys(prunedSectionTypes).length !== Object.keys(existingSectionTypes).length ||
+      Object.entries(prunedSectionTypes).some(
+        ([key, value]) => existingSectionTypes[Number(key)] !== value,
+      );
+
+    const patch = sectionTypesChanged ? { body: text, sectionTypes: prunedSectionTypes } : { body: text };
+
+    void updateSelectedFile(patch);
+    const caret = selectionRef.current?.start ?? caretIndexRef.current ?? caretIndex;
+    evaluatePickerOpen(text, caret);
   };
 
-  const handleSelectionChange = (
-    event: NativeSyntheticEvent<TextInputSelectionChangeEventData>,
-  ) => {
-    const selection = event.nativeEvent.selection;
-    setEditorSelection(selection);
-    const lineIndex = findLineIndex(body, selection.start);
-    setActiveLineIndex(lineIndex);
-    const word = findWordAtSelection(body, selection.start);
-    setSelectedWord(word);
-  };
+  const handleSelectionChange = useCallback(
+    (event: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
+      const selection = event.nativeEvent.selection;
+      setEditorSelection(selection);
+      selectionRef.current = selection;
+      const caret = selection.start;
+      setCaretIndex(caret);
+      caretIndexRef.current = caret;
+      const lineIndex = evaluatePickerOpen(bodyRef.current, caret);
+      const word = findWordAtSelection(bodyRef.current, caret);
+      setActiveLineIndex(lineIndex);
+      setSelectedWord(word);
+    },
+    [evaluatePickerOpen, setActiveLineIndex, setEditorSelection, setSelectedWord],
+  );
 
   const handleContentSizeChange = (
     event: NativeSyntheticEvent<TextInputContentSizeChangeEventData>,
@@ -161,6 +229,154 @@ export const LyricEditor = () => {
       setInputHeight((prev) => (prev === nextHeight ? prev : Math.max(nextHeight, editorLineHeight * 6)));
     }
   };
+
+  const applySectionType = useCallback(
+    (lineIndex: number, type: SectionType) => {
+      if (!selectedFile) {
+        return;
+      }
+      const nextSectionTypes = {
+        ...(selectedFile.sectionTypes ?? {}),
+        [lineIndex]: type,
+      };
+      if (selectedFile.sectionTypes?.[lineIndex] === type) {
+        setPickerLineIndex(null);
+        return;
+      }
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.log('Section picker apply', { lineIndex, type, value: nextSectionTypes[lineIndex] });
+      }
+      void updateSelectedFile({ sectionTypes: nextSectionTypes });
+      setPickerLineIndex(null);
+    },
+    [selectedFile, updateSelectedFile],
+  );
+
+  const closePicker = useCallback(
+    (options?: { defaultToVerse?: boolean; lineIndex?: number }) => {
+      const targetLineIndex = options?.lineIndex ?? pickerLineIndex;
+      setPickerLineIndex(null);
+      if (options?.defaultToVerse && typeof targetLineIndex === 'number') {
+        applySectionType(targetLineIndex, 'verse');
+      }
+    },
+    [applySectionType, pickerLineIndex],
+  );
+
+  useEffect(() => {
+    if (pickerLineIndex === null) {
+      return;
+    }
+    if (pickerLineIndex >= lines.length) {
+      setPickerLineIndex(null);
+    }
+  }, [lines.length, pickerLineIndex]);
+
+  useEffect(() => {
+    if (pickerLineIndex === null) {
+      return;
+    }
+
+    if (pickerLineIndex >= lines.length) {
+      setPickerLineIndex(null);
+      return;
+    }
+
+    const previousLineBlank = pickerLineIndex > 0 && isBlankLine(lines[pickerLineIndex - 1]);
+    if (!previousLineBlank) {
+      setPickerLineIndex(null);
+      return;
+    }
+
+    const currentLine = lines[pickerLineIndex] ?? '';
+    if (!isBlankLine(currentLine)) {
+      closePicker({ defaultToVerse: true, lineIndex: pickerLineIndex });
+    }
+  }, [closePicker, lines, pickerLineIndex]);
+
+  useEffect(() => {
+    if (pickerLineIndex === null) {
+      return;
+    }
+
+    if (pickerLineIndex >= lines.length) {
+      setPickerLineIndex(null);
+      return;
+    }
+
+    if (currentLineIndex === pickerLineIndex) {
+      return;
+    }
+
+    const previousLineBlank = pickerLineIndex > 0 && isBlankLine(lines[pickerLineIndex - 1]);
+    if (!previousLineBlank) {
+      setPickerLineIndex(null);
+      return;
+    }
+
+    closePicker({ defaultToVerse: true, lineIndex: pickerLineIndex });
+  }, [closePicker, currentLineIndex, lines, pickerLineIndex]);
+
+  useEffect(() => {
+    if (currentLineIndex >= lines.length) {
+      if (pickerLineIndex !== null) {
+        setPickerLineIndex(null);
+      }
+      return;
+    }
+
+    const previousLineBlank =
+      currentLineIndex > 0 ? isBlankLine(lines[currentLineIndex - 1]) : false;
+    const currentLineBlank = isBlankLine(lines[currentLineIndex] ?? '');
+    const nextLineBlank =
+      currentLineIndex + 1 < lines.length ? isBlankLine(lines[currentLineIndex + 1]) : false;
+    const inBlankRun = isInBlankRun(lines, currentLineIndex);
+    const readyTypingLine = previousLineBlank && (!inBlankRun || (currentLineBlank && !nextLineBlank));
+    const hasType = sectionTypes[currentLineIndex] !== undefined;
+    const shouldOpen = currentLineIndex > 0 && readyTypingLine && !hasType;
+
+    if (shouldOpen && pickerLineIndex !== currentLineIndex) {
+      setPickerLineIndex(currentLineIndex);
+      return;
+    }
+
+    if (!shouldOpen && pickerLineIndex === currentLineIndex) {
+      setPickerLineIndex(null);
+    }
+  }, [currentLineIndex, lines, pickerLineIndex, sectionTypes]);
+
+  const handleSelectSectionType = useCallback(
+    (type: SectionType) => {
+      if (pickerLineIndex === null) {
+        return;
+      }
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.log('Section picker select', { targetLineIndex: pickerLineIndex, type });
+      }
+      applySectionType(pickerLineIndex, type);
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+        if (selectionRef.current) {
+          inputRef.current?.setNativeProps({ selection: selectionRef.current });
+        }
+      });
+    },
+    [applySectionType, pickerLineIndex],
+  );
+
+  const overlayTop = useMemo(() => {
+    if (pickerLineIndex === null) {
+      return null;
+    }
+    const baseTop = pickerLineIndex * editorLineHeight - scrollOffset + editorPaddingTop;
+    if (!viewportHeight || !pickerHeight) {
+      return Math.max(0, baseTop);
+    }
+    const maxTop = viewportHeight - pickerHeight - 8;
+    return Math.min(Math.max(0, baseTop), maxTop);
+  }, [pickerHeight, pickerLineIndex, scrollOffset, viewportHeight]);
 
   if (!selectedFile) {
     return (
@@ -190,12 +406,15 @@ export const LyricEditor = () => {
           </View>
           <View className="mt-4 w-full" style={{ borderTopWidth: 2, borderTopColor: '#9DACFF' }} />
           <View className="flex-1 px-5 pb-4">
-            <View className="flex-1 rounded-lg bg-white">
+            <View className="flex-1 rounded-lg bg-white" style={{ position: 'relative' }}>
               <ScrollView
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={{
                   paddingBottom: 24 + editorPaddingBottom + (showRhymePanel ? rhymePanelHeight : 0),
                 }}
+                onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
+                onScroll={(event) => setScrollOffset(event.nativeEvent.contentOffset.y)}
+                scrollEventThrottle={16}
               >
                 <View className="flex-row">
                   <View
@@ -205,6 +424,7 @@ export const LyricEditor = () => {
                       paddingHorizontal: 12,
                       minHeight: gutterHeight,
                     }}
+                    onLayout={(event) => setLineNumberWidth(event.nativeEvent.layout.width)}
                   >
                     {lines.map((_, index) => (
                       <Text
@@ -226,6 +446,7 @@ export const LyricEditor = () => {
                     style={{ paddingTop: editorPaddingTop, paddingBottom: editorPaddingBottom }}
                   >
                     <TextInput
+                      ref={inputRef}
                       value={body}
                       multiline
                       scrollEnabled={false}
@@ -254,6 +475,25 @@ export const LyricEditor = () => {
                   </View>
                 </View>
               </ScrollView>
+              {pickerLineIndex !== null && overlayTop !== null && (
+                <View
+                  pointerEvents="box-none"
+                  style={{
+                    position: 'absolute',
+                    top: overlayTop,
+                    left: lineNumberWidth + editorHorizontalPadding,
+                    right: editorHorizontalPadding,
+                  }}
+                  onLayout={(event) => setPickerHeight(event.nativeEvent.layout.height)}
+                >
+                  <SectionChipsRow
+                    startLineIndex={pickerLineIndex}
+                    mode="new"
+                    activeType={null}
+                    onSelect={handleSelectSectionType}
+                  />
+                </View>
+              )}
             </View>
             <View className="mt-3 flex-row items-center">
               <SaveStatus />

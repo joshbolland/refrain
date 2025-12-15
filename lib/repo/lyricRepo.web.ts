@@ -10,6 +10,11 @@ interface RefrainDB extends DBSchema {
   };
 }
 
+const withDefaultSectionTypes = (file: LyricFile): LyricFile => ({
+  ...file,
+  sectionTypes: file.sectionTypes ?? {},
+});
+
 const dbPromise = openDB<RefrainDB>('refrain', 1, {
   upgrade(db) {
     if (!db.objectStoreNames.contains('lyric_files')) {
@@ -28,18 +33,18 @@ export const createWebLyricRepository = (): LyricRepository => ({
   async listFiles(): Promise<LyricFile[]> {
     const db = await getDb();
     const files = await db.getAll('lyric_files');
-    return [...files].sort((a, b) => b.updatedAt - a.updatedAt);
+    return files.map(withDefaultSectionTypes).sort((a, b) => b.updatedAt - a.updatedAt);
   },
 
   async getFile(id: LyricFileId): Promise<LyricFile | null> {
     const db = await getDb();
     const file = await db.get('lyric_files', id);
-    return file ?? null;
+    return file ? withDefaultSectionTypes(file) : null;
   },
 
   async upsertFile(file: LyricFile): Promise<void> {
     const db = await getDb();
-    await db.put('lyric_files', file);
+    await db.put('lyric_files', withDefaultSectionTypes(file));
   },
 
   async deleteFile(id: LyricFileId): Promise<void> {
