@@ -1,11 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentRef,
+  type ReactNode,
+} from 'react';
+import {
+  Alert,
   LayoutChangeEvent,
   NativeSyntheticEvent,
-  Pressable,
-  Alert,
   Platform,
-  ScrollView,
+  Pressable,
   Text,
   TextInput,
   TextInputContentSizeChangeEventData,
@@ -13,6 +20,12 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
+import Animated, {
+  runOnJS,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -147,7 +160,7 @@ export const LyricEditor = () => {
   const [lineHeights, setLineHeights] = useState<number[]>([]);
   const [textColumnWidth, setTextColumnWidth] = useState(0);
   const [badgeViewportHeight, setBadgeViewportHeight] = useState(0);
-  const scrollRef = useRef<ScrollView | null>(null);
+  const scrollRef = useRef<ComponentRef<typeof Animated.ScrollView> | null>(null);
   const selectionRef = useRef<{ start: number; end: number } | null>(null);
   const inputRef = useRef<TextInput | null>(null);
   const caretIndexRef = useRef(0);
@@ -155,6 +168,8 @@ export const LyricEditor = () => {
   const bodyRef = useRef('');
   const isDraggingRef = useRef(false);
   const lastAutoScrollKey = useRef<string | null>(null);
+  const lastScrollUpdateTsRef = useRef(0);
+  const scrollY = useSharedValue(0);
   const BADGE_Y_OFFSET = 10;
   const BADGE_HEIGHT = 22;
   const BADGE_GAP = 6;
@@ -183,6 +198,22 @@ export const LyricEditor = () => {
   useEffect(() => {
     setShowRhymePanel(isDesktop);
   }, [isDesktop]);
+
+  const throttledSetScrollOffset = useCallback((y: number) => {
+    const now = Date.now();
+    if (now - lastScrollUpdateTsRef.current < 80) {
+      return;
+    }
+    lastScrollUpdateTsRef.current = now;
+    setScrollOffset(y);
+  }, []);
+
+  const onEditorScroll = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+      runOnJS(throttledSetScrollOffset)(event.contentOffset.y);
+    },
+  });
 
   useEffect(() => {
     if (!selectedFile) {
@@ -467,7 +498,6 @@ export const LyricEditor = () => {
       // Edit overlay flow
       if (editingSectionLineIndex !== null) {
         if (__DEV__) {
-          // eslint-disable-next-line no-console
           console.log('Section picker select', { targetLineIndex: editingSectionLineIndex, type });
         }
         applySectionType(editingSectionLineIndex, type);
@@ -493,7 +523,7 @@ export const LyricEditor = () => {
           type === 'chorus'
             ? findPreviousChorusStart
             : (bodyValue: string, types: Record<number, SectionType>, target: number) =>
-                findPreviousSectionStartOfType(bodyValue, types, target, 'pre-chorus');
+              findPreviousSectionStartOfType(bodyValue, types, target, 'pre-chorus');
         const prevStart = finder(bodyRef.current, sectionTypes, pickerLineIndex);
         if (prevStart !== null) {
           const choice = await promptRepeatChoice(type);
@@ -555,7 +585,6 @@ export const LyricEditor = () => {
       }
 
       if (__DEV__) {
-        // eslint-disable-next-line no-console
         console.log('Section picker select', { targetLineIndex: pickerLineIndex, type });
       }
       applySectionType(pickerLineIndex, type);
@@ -577,6 +606,7 @@ export const LyricEditor = () => {
       sectionTypes,
       setActiveLineIndex,
       setCaretIndex,
+      updateSelectedFile,
     ],
   );
 
@@ -616,10 +646,14 @@ export const LyricEditor = () => {
         ? sectionTypes[editingSectionLineIndex] ?? null
         : null;
 
-  const computeBadgeTop = useCallback(
+  const computeBadgeBaseTop = useCallback(
     (lineIndex: number) =>
-      getLineOffset(lineIndex) - scrollOffset + editorPaddingTop - BADGE_HEIGHT - BADGE_GAP + BADGE_Y_OFFSET,
-    [BADGE_GAP, BADGE_HEIGHT, BADGE_Y_OFFSET, getLineOffset, scrollOffset],
+      getLineOffset(lineIndex) + editorPaddingTop - BADGE_HEIGHT - BADGE_GAP + BADGE_Y_OFFSET,
+    [BADGE_GAP, BADGE_HEIGHT, BADGE_Y_OFFSET, getLineOffset],
+  );
+  const computeBadgeTop = useCallback(
+    (lineIndex: number) => computeBadgeBaseTop(lineIndex) - scrollOffset,
+    [computeBadgeBaseTop, scrollOffset],
   );
 
   useEffect(() => {
@@ -700,6 +734,20 @@ export const LyricEditor = () => {
     return Math.max(0, offset - scrollOffset);
   }, [scrollOffset, shouldShowStartPicker]);
 
+  const Badge = ({ baseTop, left, children }: { baseTop: number; left: number; children: ReactNode }) => {
+    const animatedStyle = useAnimatedStyle(
+      () => ({
+        transform: [{ translateY: baseTop - scrollY.value }],
+      }),
+      [baseTop],
+    );
+    return (
+      <Animated.View pointerEvents="box-none" style={[{ position: 'absolute', top: 0, left }, animatedStyle]}>
+        {children}
+      </Animated.View>
+    );
+  };
+
   if (!selectedFile) {
     return (
       <View className="flex-1 items-center justify-center rounded-xl bg-accentSoft px-6 py-12">
@@ -732,7 +780,7 @@ export const LyricEditor = () => {
               className="flex-1 rounded-lg bg-white"
               style={{ position: 'relative', overflow: 'hidden' }}
             >
-              <ScrollView
+              <Animated.ScrollView
                 ref={scrollRef}
                 style={{ flex: 1 }}
                 keyboardShouldPersistTaps="handled"
@@ -740,7 +788,7 @@ export const LyricEditor = () => {
                   paddingBottom: 24 + editorPaddingBottom + (showRhymePanel ? rhymePanelHeight : 0),
                 }}
                 onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
-                onScroll={(event) => setScrollOffset(event.nativeEvent.contentOffset.y)}
+                onScroll={onEditorScroll}
                 onScrollBeginDrag={() => {
                   isDraggingRef.current = true;
                 }}
@@ -815,7 +863,7 @@ export const LyricEditor = () => {
                     />
                   </View>
                 </View>
-              </ScrollView>
+              </Animated.ScrollView>
               {shouldShowStartPicker && startPickerTop !== null && (
                 <View
                   pointerEvents="box-none"
@@ -871,20 +919,20 @@ export const LyricEditor = () => {
                     return null;
                   }
                   const colors = SECTION_TYPE_COLORS[type];
-                  const top = computeBadgeTop(index);
-                  const cullMargin = 80;
-                  if (badgeViewportHeight && top > badgeViewportHeight + cullMargin) {
-                    return null;
+                  const baseTop = computeBadgeBaseTop(index);
+                  if (badgeViewportHeight) {
+                    const visibleTop = scrollOffset;
+                    const visibleBottom = scrollOffset + badgeViewportHeight;
+                    const cullMargin = 160;
+                    if (baseTop < visibleTop - cullMargin || baseTop > visibleBottom + cullMargin) {
+                      return null;
+                    }
                   }
                   return (
-                    <View
+                    <Badge
                       key={`badge-${index}`}
-                      pointerEvents="box-none"
-                      style={{
-                        position: 'absolute',
-                        top,
-                        left: lineNumberWidth + editorHorizontalPadding,
-                      }}
+                      baseTop={baseTop}
+                      left={lineNumberWidth + editorHorizontalPadding}
                     >
                       <Pressable
                         pointerEvents="auto"
@@ -907,7 +955,7 @@ export const LyricEditor = () => {
                           {type.replace('-', ' ').toUpperCase()}
                         </Text>
                       </Pressable>
-                    </View>
+                    </Badge>
                   );
                 })}
               </View>
