@@ -37,10 +37,13 @@ export const cleanupSectionTypes = (
   body: string,
   sectionTypes: Record<number, SectionType>,
 ): Record<number, SectionType> => {
+  const lines = body.split('\n');
   const validStarts = getValidSectionStartSet(body);
+  const hasNonBlankLines = lines.some((line) => !isBlankLine(line));
   const cleaned = Object.entries(sectionTypes).reduce<Record<number, SectionType>>((acc, [key, value]) => {
     const index = Number(key);
-    if (Number.isInteger(index) && validStarts.has(index)) {
+    const isEmptyStart = !hasNonBlankLines && index === 0;
+    if (Number.isInteger(index) && (validStarts.has(index) || isEmptyStart)) {
       acc[index] = value;
     }
     return acc;
@@ -105,6 +108,9 @@ export const ensureDefaultSectionTypes = (
 
   validStarts.forEach((index) => {
     if (next[index] !== undefined) {
+      return;
+    }
+    if (index === 0) {
       return;
     }
     if (!isBlankLine(lines[index] ?? '')) {

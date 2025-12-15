@@ -16,7 +16,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
-  extractBlockText,
   findPreviousChorusStart,
   findPreviousSectionStartOfType,
   getSectionBlockRange,
@@ -152,6 +151,7 @@ export const LyricEditor = () => {
   const selectionRef = useRef<{ start: number; end: number } | null>(null);
   const inputRef = useRef<TextInput | null>(null);
   const caretIndexRef = useRef(0);
+  const [isEditorFocused, setIsEditorFocused] = useState(false);
   const bodyRef = useRef('');
   const isDraggingRef = useRef(false);
   const lastAutoScrollKey = useRef<string | null>(null);
@@ -159,7 +159,6 @@ export const LyricEditor = () => {
   const BADGE_HEIGHT = 22;
   const BADGE_GAP = 6;
   const EDIT_PICKER_EST_HEIGHT = 44;
-  const EDIT_MIN_GAP = 6;
   const GUTTER_NUMBER_Y_OFFSET = 4;
   const VISIBILITY_MARGIN = 16;
   const AUTO_SCROLL_EPSILON = 6;
@@ -232,11 +231,15 @@ export const LyricEditor = () => {
   const contentHeight = yOffsets[yOffsets.length - 1] ?? editorLineHeight * lines.length;
   const gutterHeight = Math.max(inputHeight, contentHeight, editorLineHeight * lines.length);
   const targetRhymeWord = selectedWord;
-  const sectionTypes = selectedFile?.sectionTypes ?? {};
+  const sectionTypes = useMemo<Record<number, SectionType>>(
+    () => selectedFile?.sectionTypes ?? {},
+    [selectedFile?.sectionTypes],
+  );
   const firstNonBlankLineIndex = useMemo(
     () => lines.findIndex((line) => !isBlankLine(line)),
     [lines],
   );
+  const isEmpty = firstNonBlankLineIndex === -1;
 
   const sectionBadges = useMemo(() => {
     if (lines.length === 0) {
@@ -345,7 +348,9 @@ export const LyricEditor = () => {
       setPickerLineIndex(null);
       setPickerMode('new');
       if (shouldDefault && typeof targetLineIndex === 'number') {
-        applySectionType(targetLineIndex, 'verse');
+        if (targetLineIndex !== 0) {
+          applySectionType(targetLineIndex, 'verse');
+        }
       }
     },
     [applySectionType, pickerLineIndex, pickerMode],
@@ -575,6 +580,23 @@ export const LyricEditor = () => {
     ],
   );
 
+  const handleSelectStartSectionType = useCallback(
+    (type: SectionType) => {
+      applySectionType(0, type);
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+        const selection = selectionRef.current ?? { start: 0, end: 0 };
+        selectionRef.current = selection;
+        setCaretIndex(selection.start);
+        const lineIndex = getLineIndexAtChar(bodyRef.current, selection.start);
+        setCurrentLineIndex(lineIndex);
+        setActiveLineIndex(lineIndex);
+        inputRef.current?.setNativeProps({ selection });
+      });
+    },
+    [applySectionType, setActiveLineIndex, setCaretIndex],
+  );
+
   const overlayTop = useMemo(() => {
     if (pickerMode !== 'new' || pickerLineIndex === null) {
       return null;
@@ -662,6 +684,21 @@ export const LyricEditor = () => {
     showRhymePanel,
     rhymePanelHeight,
   ]);
+
+  const shouldShowStartPicker = useMemo(() => {
+    const hasStartType = sectionTypes[0] !== undefined;
+    return isEmpty && !hasStartType && isEditorFocused;
+  }, [isEditorFocused, isEmpty, sectionTypes]);
+
+  const textLeft = useMemo(() => lineNumberWidth + editorHorizontalPadding * 2, [lineNumberWidth]);
+
+  const startPickerTop = useMemo(() => {
+    if (!shouldShowStartPicker) {
+      return null;
+    }
+    const offset = editorPaddingTop + editorLineHeight * 0.25;
+    return Math.max(0, offset - scrollOffset);
+  }, [scrollOffset, shouldShowStartPicker]);
 
   if (!selectedFile) {
     return (
@@ -755,6 +792,8 @@ export const LyricEditor = () => {
                       onChangeText={handleChangeBody}
                       onSelectionChange={handleSelectionChange}
                       onContentSizeChange={handleContentSizeChange}
+                      onFocus={() => setIsEditorFocused(true)}
+                      onBlur={() => setIsEditorFocused(false)}
                       style={{
                         minHeight: gutterHeight,
                         flexGrow: 1,
@@ -766,17 +805,35 @@ export const LyricEditor = () => {
                         textAlignVertical: 'top',
                       }}
                       className="font-mono text-ink"
-                      placeholder="Start writing your verse..."
                       placeholderTextColor="#9CA3AF"
                       selectionColor="#9DACFF"
                       cursorColor="#9DACFF"
                       autoCorrect={false}
                       autoCapitalize="sentences"
                       underlineColorAndroid="transparent"
+                      placeholder={shouldShowStartPicker ? '' : 'Start writing your verse...'}
                     />
                   </View>
                 </View>
               </ScrollView>
+              {shouldShowStartPicker && startPickerTop !== null && (
+                <View
+                  pointerEvents="box-none"
+                  style={{
+                    position: 'absolute',
+                    top: startPickerTop,
+                    left: textLeft,
+                    right: editorHorizontalPadding,
+                  }}
+                >
+                  <SectionChipsRow
+                    startLineIndex={0}
+                    mode="new"
+                    activeType={sectionTypes[0] ?? null}
+                    onSelect={handleSelectStartSectionType}
+                  />
+                </View>
+              )}
               <View
                 pointerEvents="none"
                 style={{

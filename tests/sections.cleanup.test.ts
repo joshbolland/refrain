@@ -45,14 +45,23 @@ describe('cleanupSectionTypes', () => {
     expect(cleaned).toEqual({ 2: 'chorus' });
   });
 
+  it('keeps a chosen start type for an empty body', () => {
+    const body = '';
+    const sectionTypes: Record<number, SectionType> = { 0: 'intro' };
+
+    const cleaned = cleanupSectionTypes(body, sectionTypes);
+
+    expect(cleaned).toEqual({ 0: 'intro' });
+  });
+
   describe('ensureDefaultSectionTypes', () => {
-    it('defaults first block to verse', () => {
+    it('leaves first block untyped', () => {
       const body = 'Line1\nLine2';
       const sectionTypes: Record<number, SectionType> = {};
 
       const result = ensureDefaultSectionTypes(body, sectionTypes);
 
-      expect(result).toEqual({ 0: 'verse' });
+      expect(result).toEqual({});
     });
 
     it('defaults multi-block pasted content to verse per section start', () => {
@@ -61,7 +70,7 @@ describe('cleanupSectionTypes', () => {
 
       const result = ensureDefaultSectionTypes(body, sectionTypes);
 
-      expect(result).toEqual({ 0: 'verse', 3: 'verse' });
+      expect(result).toEqual({ 3: 'verse' });
     });
 
     it('does not default empty new section lines', () => {
@@ -70,7 +79,7 @@ describe('cleanupSectionTypes', () => {
 
       const result = ensureDefaultSectionTypes(body, sectionTypes);
 
-      expect(result).toEqual({ 0: 'verse' });
+      expect(result).toEqual({});
     });
 
     it('does not override existing types', () => {
@@ -79,7 +88,7 @@ describe('cleanupSectionTypes', () => {
 
       const result = ensureDefaultSectionTypes(body, sectionTypes);
 
-      expect(result).toEqual({ 0: 'verse', 3: 'chorus' });
+      expect(result).toEqual({ 3: 'chorus' });
     });
   });
 
