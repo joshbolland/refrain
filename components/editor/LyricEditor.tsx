@@ -748,6 +748,10 @@ export const LyricEditor = () => {
     );
   };
 
+  const isNewPickerOpen = pickerMode === 'new' && pickerLineIndex !== null;
+  const isEditPickerOpen = editingSectionLineIndex !== null;
+  const isAnyPickerOpen = isNewPickerOpen || isEditPickerOpen;
+
   if (!selectedFile) {
     return (
       <View className="flex-1 items-center justify-center rounded-xl bg-accentSoft px-6 py-12">
@@ -864,6 +868,23 @@ export const LyricEditor = () => {
                   </View>
                 </View>
               </Animated.ScrollView>
+              {isAnyPickerOpen && (
+                <Pressable
+                  pointerEvents="auto"
+                  onPress={() => {
+                    if (isEditPickerOpen) {
+                      setEditingSectionLineIndex(null);
+                      setPickerLineIndex(null);
+                      setPickerMode('new');
+                      return;
+                    }
+                    if (isNewPickerOpen) {
+                      closePicker();
+                    }
+                  }}
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, elevation: 1 }}
+                />
+              )}
               {shouldShowStartPicker && startPickerTop !== null && (
                 <View
                   pointerEvents="box-none"
@@ -872,6 +893,8 @@ export const LyricEditor = () => {
                     top: startPickerTop,
                     left: textLeft,
                     right: editorHorizontalPadding,
+                    zIndex: 20,
+                    elevation: 2,
                   }}
                 >
                   <SectionChipsRow
@@ -967,6 +990,8 @@ export const LyricEditor = () => {
                     top: overlayTop,
                     left: lineNumberWidth + editorHorizontalPadding,
                     right: editorHorizontalPadding,
+                    zIndex: 20,
+                    elevation: 2,
                   }}
                   onLayout={(event) => setPickerHeight(event.nativeEvent.layout.height)}
                 >
@@ -994,6 +1019,8 @@ export const LyricEditor = () => {
                     })(),
                     left: lineNumberWidth + editorHorizontalPadding,
                     right: editorHorizontalPadding,
+                    zIndex: 20,
+                    elevation: 2,
                   }}
                 >
                   <Pressable
