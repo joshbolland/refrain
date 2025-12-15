@@ -10,6 +10,7 @@ type SectionChipsRowProps = {
   mode: 'edit' | 'new';
   startLineIndex: number;
   onSelect(type: SectionType): void;
+  onLayout?(event: any): void;
 };
 
 const CHIP_OPTIONS: ChipOption[] = [
@@ -37,6 +38,7 @@ export const SectionChipsRow = ({
   mode,
   startLineIndex,
   onSelect,
+  onLayout,
 }: SectionChipsRowProps) => {
   const opacity = useRef(new Animated.Value(0)).current;
   const translate = useRef(new Animated.Value(6)).current;
@@ -55,15 +57,12 @@ export const SectionChipsRow = ({
     return CHIP_OPTIONS;
   }, [activeType, mode]);
 
-  if (options.length === 0) {
-    return null;
-  }
-
   return (
     <Animated.View
       className={mode === 'edit' ? 'ml-3' : undefined}
       pointerEvents="auto"
       style={{ opacity, transform: [{ translateX: translate }] }}
+      onLayout={onLayout}
     >
       <ScrollView
         horizontal
@@ -86,6 +85,11 @@ export const SectionChipsRow = ({
                 borderWidth: isActive ? 1.5 : 1,
                 opacity: pressed ? 0.9 : 1,
                 transform: [{ translateY: pressed ? 1 : 0 }],
+                shadowColor: isActive ? colors.accent : undefined,
+                shadowOpacity: isActive ? 0.18 : 0,
+                shadowRadius: isActive ? 6 : 0,
+                shadowOffset: isActive ? { width: 0, height: 2 } : { width: 0, height: 0 },
+                elevation: isActive ? 2 : 0,
               })}
             >
               <Text

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 import { getLyricRepository } from '../lib/repo/lyricRepo';
 import type { LyricFile, LyricFileId } from '../types/lyricFile';
-import { cleanupSectionTypes } from '../analysis/sections';
+import { cleanupSectionTypes, ensureDefaultSectionTypes } from '../analysis/sections';
 
 type SelectionRange = { start: number; end: number };
 
@@ -179,10 +179,11 @@ export const useRefrainStore = create<RefrainState>((set, get) => ({
     const nextBody = patch.body ?? baseFile.body;
     const rawSectionTypes = patch.sectionTypes ?? baseFile.sectionTypes ?? {};
     const cleanedSectionTypes = cleanupSectionTypes(nextBody, rawSectionTypes);
+    const defaultedSectionTypes = ensureDefaultSectionTypes(nextBody, cleanedSectionTypes);
     const nextSectionTypes =
-      sectionTypesEqual(rawSectionTypes, cleanedSectionTypes) && patch.sectionTypes === undefined
+      sectionTypesEqual(rawSectionTypes, defaultedSectionTypes) && patch.sectionTypes === undefined
         ? baseFile.sectionTypes ?? {}
-        : cleanedSectionTypes;
+        : defaultedSectionTypes;
 
     const updated: LyricFile = {
       ...baseFile,

@@ -135,13 +135,20 @@ export const LyricEditor = () => {
   const [pickerLineIndex, setPickerLineIndex] = useState<number | null>(null);
   const [pickerMode, setPickerMode] = useState<'new' | 'edit'>('new');
   const [pickerHeight, setPickerHeight] = useState(0);
+  const [editPickerHeight, setEditPickerHeight] = useState(0);
+  const [editingSectionLineIndex, setEditingSectionLineIndex] = useState<number | null>(null);
   const [lineHeights, setLineHeights] = useState<number[]>([]);
   const [textColumnWidth, setTextColumnWidth] = useState(0);
+  const [badgeViewportHeight, setBadgeViewportHeight] = useState(0);
   const selectionRef = useRef<{ start: number; end: number } | null>(null);
   const inputRef = useRef<TextInput | null>(null);
   const caretIndexRef = useRef(0);
   const bodyRef = useRef('');
   const BADGE_Y_OFFSET = 10;
+  const BADGE_HEIGHT = 22;
+  const BADGE_GAP = 6;
+  const EDIT_PICKER_EST_HEIGHT = 44;
+  const EDIT_MIN_GAP = 6;
   const GUTTER_NUMBER_Y_OFFSET = 4;
 
   const {
@@ -415,14 +422,18 @@ export const LyricEditor = () => {
 
   const handleSelectSectionType = useCallback(
     (type: SectionType) => {
-      if (pickerLineIndex === null) {
+      const targetIndex = editingSectionLineIndex ?? pickerLineIndex;
+      if (targetIndex === null) {
         return;
       }
       if (__DEV__) {
-
-        console.log('Section picker select', { targetLineIndex: pickerLineIndex, type });
+        // eslint-disable-next-line no-console
+        console.log('Section picker select', { targetLineIndex: targetIndex, type });
       }
-      applySectionType(pickerLineIndex, type);
+      applySectionType(targetIndex, type);
+      setEditingSectionLineIndex(null);
+      setPickerLineIndex(null);
+      setPickerMode('new');
       requestAnimationFrame(() => {
         inputRef.current?.focus();
         if (selectionRef.current) {
@@ -430,11 +441,11 @@ export const LyricEditor = () => {
         }
       });
     },
-    [applySectionType, pickerLineIndex],
+    [applySectionType, editingSectionLineIndex, pickerLineIndex],
   );
 
   const overlayTop = useMemo(() => {
-    if (pickerLineIndex === null) {
+    if (pickerMode !== 'new' || pickerLineIndex === null) {
       return null;
     }
     const baseTop = getLineOffset(pickerLineIndex) - scrollOffset + editorPaddingTop;
@@ -443,10 +454,20 @@ export const LyricEditor = () => {
     }
     const maxTop = viewportHeight - pickerHeight - 8;
     return Math.min(Math.max(0, baseTop), maxTop);
-  }, [getLineOffset, pickerHeight, pickerLineIndex, scrollOffset, viewportHeight]);
+  }, [getLineOffset, pickerHeight, pickerLineIndex, pickerMode, scrollOffset, viewportHeight]);
 
   const activePickerType =
-    pickerLineIndex !== null && pickerMode === 'edit' ? sectionTypes[pickerLineIndex] ?? null : null;
+    pickerLineIndex !== null && pickerMode === 'edit'
+      ? sectionTypes[pickerLineIndex] ?? null
+      : editingSectionLineIndex !== null
+        ? sectionTypes[editingSectionLineIndex] ?? null
+        : null;
+
+  const computeBadgeTop = useCallback(
+    (lineIndex: number) =>
+      getLineOffset(lineIndex) - scrollOffset + editorPaddingTop - BADGE_HEIGHT - BADGE_GAP + BADGE_Y_OFFSET,
+    [BADGE_GAP, BADGE_HEIGHT, BADGE_Y_OFFSET, getLineOffset, scrollOffset],
+  );
 
   if (!selectedFile) {
     return (
@@ -476,7 +497,10 @@ export const LyricEditor = () => {
           </View>
           <View className="mt-4 w-full" style={{ borderTopWidth: 2, borderTopColor: '#9DACFF' }} />
           <View className="flex-1 px-5 pb-4">
-            <View className="flex-1 rounded-lg bg-white" style={{ position: 'relative' }}>
+            <View
+              className="flex-1 rounded-lg bg-white"
+              style={{ position: 'relative', overflow: 'hidden' }}
+            >
               <ScrollView
                 style={{ flex: 1 }}
                 keyboardShouldPersistTaps="handled"
@@ -576,13 +600,21 @@ export const LyricEditor = () => {
                   </Text>
                 ))}
               </View>
-              <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, left: 0, right: 0 }}>
+              <View
+                pointerEvents="box-none"
+                style={{ position: 'absolute', top: 0, left: 0, right: 0 }}
+                onLayout={(event) => setBadgeViewportHeight(event.nativeEvent.layout.height)}
+              >
                 {sectionBadges.map(({ index, type }) => {
+                  if (editingSectionLineIndex === index) {
+                    return null;
+                  }
                   const colors = SECTION_TYPE_COLORS[type];
-                  const baseTop = getLineOffset(index) - scrollOffset + editorPaddingTop;
-                  const badgeHeight = 22;
-                  const gap = 6;
-                  const top = Math.max(4, baseTop - badgeHeight - gap + BADGE_Y_OFFSET);
+                  const top = computeBadgeTop(index);
+                  const cullMargin = 80;
+                  if (badgeViewportHeight && top > badgeViewportHeight + cullMargin) {
+                    return null;
+                  }
                   return (
                     <View
                       key={`badge-${index}`}
@@ -597,7 +629,8 @@ export const LyricEditor = () => {
                         pointerEvents="auto"
                         onPress={() => {
                           setPickerMode('edit');
-                          setPickerLineIndex(index);
+                          setPickerLineIndex(null);
+                          setEditingSectionLineIndex(index);
                         }}
                         className="rounded-full px-2.5 py-1"
                         style={{
@@ -617,7 +650,7 @@ export const LyricEditor = () => {
                   );
                 })}
               </View>
-              {pickerLineIndex !== null && overlayTop !== null && (
+              {pickerMode === 'new' && pickerLineIndex !== null && overlayTop !== null && (
                 <View
                   pointerEvents="box-none"
                   style={{
@@ -633,6 +666,44 @@ export const LyricEditor = () => {
                     mode={pickerMode}
                     activeType={activePickerType}
                     onSelect={handleSelectSectionType}
+                  />
+                </View>
+              )}
+              {editingSectionLineIndex !== null && (
+                <View
+                  pointerEvents="box-none"
+                  style={{
+                    position: 'absolute',
+                    top: (() => {
+                      const pickerH = editPickerHeight || EDIT_PICKER_EST_HEIGHT;
+                      const badgeTop = computeBadgeTop(editingSectionLineIndex);
+                      const boundedTop =
+                        badgeViewportHeight !== 0
+                          ? Math.max(0, Math.min(badgeTop, badgeViewportHeight - pickerH))
+                          : Math.max(0, badgeTop);
+                      return boundedTop;
+                    })(),
+                    left: lineNumberWidth + editorHorizontalPadding,
+                    right: editorHorizontalPadding,
+                  }}
+                >
+                  <Pressable
+                    pointerEvents="auto"
+                    onPress={() => setEditingSectionLineIndex(null)}
+                    style={{
+                      position: 'absolute',
+                      top: -32,
+                      bottom: -32,
+                      left: -40,
+                      right: -40,
+                    }}
+                  />
+                  <SectionChipsRow
+                    startLineIndex={editingSectionLineIndex}
+                    mode="edit"
+                    activeType={sectionTypes[editingSectionLineIndex] ?? null}
+                    onSelect={handleSelectSectionType}
+                    onLayout={(event) => setEditPickerHeight(event.nativeEvent.layout.height || EDIT_PICKER_EST_HEIGHT)}
                   />
                 </View>
               )}

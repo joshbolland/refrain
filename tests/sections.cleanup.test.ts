@@ -1,4 +1,4 @@
-import { cleanupSectionTypes } from '../analysis/sections';
+import { cleanupSectionTypes, ensureDefaultSectionTypes } from '../analysis/sections';
 import type { SectionType } from '../types/lyricFile';
 
 describe('cleanupSectionTypes', () => {
@@ -36,5 +36,43 @@ describe('cleanupSectionTypes', () => {
     const cleaned = cleanupSectionTypes(body, sectionTypes);
 
     expect(cleaned).toEqual({ 2: 'chorus' });
+  });
+
+  describe('ensureDefaultSectionTypes', () => {
+    it('defaults first block to verse', () => {
+      const body = 'Line1\nLine2';
+      const sectionTypes: Record<number, SectionType> = {};
+
+      const result = ensureDefaultSectionTypes(body, sectionTypes);
+
+      expect(result).toEqual({ 0: 'verse' });
+    });
+
+    it('defaults multi-block pasted content to verse per section start', () => {
+      const body = 'V1 line\nV1 line2\n\nV2 line\nV2 line2';
+      const sectionTypes: Record<number, SectionType> = {};
+
+      const result = ensureDefaultSectionTypes(body, sectionTypes);
+
+      expect(result).toEqual({ 0: 'verse', 3: 'verse' });
+    });
+
+    it('does not default empty new section lines', () => {
+      const body = 'Line1\n\n';
+      const sectionTypes: Record<number, SectionType> = {};
+
+      const result = ensureDefaultSectionTypes(body, sectionTypes);
+
+      expect(result).toEqual({ 0: 'verse' });
+    });
+
+    it('does not override existing types', () => {
+      const body = 'V1 line\nV1 line2\n\nV2 line\nV2 line2';
+      const sectionTypes: Record<number, SectionType> = { 3: 'chorus' };
+
+      const result = ensureDefaultSectionTypes(body, sectionTypes);
+
+      expect(result).toEqual({ 0: 'verse', 3: 'chorus' });
+    });
   });
 });

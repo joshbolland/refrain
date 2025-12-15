@@ -56,3 +56,23 @@ export const cleanupSectionTypes = (
 
   return cleaned;
 };
+
+export const ensureDefaultSectionTypes = (
+  body: string,
+  sectionTypes: Record<number, SectionType>,
+): Record<number, SectionType> => {
+  const lines = body.split('\n');
+  const validStarts = getValidSectionStartSet(body);
+  const next: Record<number, SectionType> = { ...sectionTypes };
+
+  validStarts.forEach((index) => {
+    if (next[index] !== undefined) {
+      return;
+    }
+    if (!isBlankLine(lines[index] ?? '')) {
+      next[index] = 'verse';
+    }
+  });
+
+  return next;
+};
