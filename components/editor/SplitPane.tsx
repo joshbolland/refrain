@@ -7,9 +7,15 @@ interface SplitPaneProps {
 }
 
 export const SplitPane = ({ left, right }: SplitPaneProps) => (
-  <View className="flex-1 flex-row bg-white">
+  <View 
+    className="flex-1 flex-row"
+    style={{ backgroundColor: '#FAFAF7' }}
+  >
     <View className="w-[360px] bg-accentSoft">{left}</View>
-    <View className="flex-1 bg-white px-6 py-5">
+    <View 
+      className="flex-1 px-6 py-5"
+      style={{ backgroundColor: '#FAFAF7' }}
+    >
       <View className="w-full">{right}</View>
     </View>
   </View>

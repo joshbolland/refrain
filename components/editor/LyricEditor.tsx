@@ -769,7 +769,10 @@ export const LyricEditor = () => {
 
   return (
     <View className="flex-1">
-      <View className="flex-1 rounded-xl bg-white" style={{ flexShrink: 1, minHeight: 0 }}>
+      <View
+        className="flex-1 rounded-xl"
+        style={{ backgroundColor: '#FAFAF7', flexShrink: 1, minHeight: 0 }}
+      >
         <View className="w-full" style={{ borderTopWidth: 2, borderTopColor: '#9DACFF' }} />
         <View className="flex-1">
           <View className="px-5 pt-4">
@@ -787,8 +790,14 @@ export const LyricEditor = () => {
           <View className="mt-4 w-full" style={{ borderTopWidth: 2, borderTopColor: '#9DACFF' }} />
           <View className="flex-1 px-5" style={{ minHeight: 0 }}>
             <View
-              className="rounded-lg bg-white"
-              style={{ position: 'relative', overflow: 'hidden', flex: 1, minHeight: 0 }}
+              className="rounded-lg"
+              style={{
+                backgroundColor: '#FAFAF7',
+                position: 'relative',
+                overflow: 'hidden',
+                flex: 1,
+                minHeight: 0
+              }}
             >
               <Animated.ScrollView
                 ref={scrollRef}
@@ -1078,8 +1087,12 @@ export const LyricEditor = () => {
       </View>
       {showRhymePanel && (
         <View
-          className="mt-4 rounded-xl bg-white p-4"
-          style={{ borderTopWidth: 2, borderTopColor: '#9DACFF' }}
+          className="mt-4 rounded-xl p-4"
+          style={{
+            backgroundColor: '#FAFAF7',
+            borderTopWidth: 2,
+            borderTopColor: '#9DACFF'
+          }}
           onLayout={(event) => setRhymePanelHeight(event.nativeEvent.layout.height)}
         >
           <RhymePanel targetWord={targetRhymeWord} />

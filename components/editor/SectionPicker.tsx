@@ -51,8 +51,9 @@ export const SectionPicker = ({ top, width, onSelect, onDismiss, hasChorus }: Se
       }}
     >
       <View
-        className="self-start rounded-lg bg-white px-3 py-2 shadow-sm"
+        className="self-start rounded-lg px-3 py-2 shadow-sm"
         style={{
+          backgroundColor: '#FAFAF7',
           borderColor: '#9DACFF',
           borderWidth: 1,
           shadowColor: '#000',

@@ -37,8 +37,12 @@ export default function FilesScreen() {
   if (isDesktop) {
     return (
       <View
-        className="flex-1 bg-white px-4"
-        style={{ paddingTop: safeAreaTop + 16, paddingBottom: safeAreaBottom + 16 }}
+        className="flex-1 px-4"
+        style={{
+          backgroundColor: '#FAFAF7',
+          paddingTop: safeAreaTop + 16,
+          paddingBottom: safeAreaBottom + 16
+        }}
       >
         <SplitPane left={<FileList isDesktop />} right={<LyricEditor />} />
       </View>
@@ -47,8 +51,12 @@ export default function FilesScreen() {
 
   return (
     <View
-      className="flex-1 bg-white px-4"
-      style={{ paddingTop: safeAreaTop + 16, paddingBottom: safeAreaBottom + 16 }}
+      className="flex-1 px-4"
+      style={{
+        backgroundColor: '#FAFAF7',
+        paddingTop: safeAreaTop + 16,
+        paddingBottom: safeAreaBottom + 16
+      }}
     >
       <FileList />
     </View>

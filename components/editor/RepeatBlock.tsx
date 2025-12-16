@@ -61,7 +61,10 @@ export const RepeatBlock = ({
         })}
       >
         <View className="mb-2 flex-row items-center">
-          <View className="rounded-full bg-white/90 px-2 py-1">
+          <View 
+            className="rounded-full px-2 py-1"
+            style={{ backgroundColor: 'rgba(250, 250, 247, 0.9)' }}
+          >
             <Text className="text-xs font-semibold uppercase tracking-[0.08em] text-accent">
               ↻ Chorus
             </Text>
@@ -84,8 +87,9 @@ export const RepeatBlock = ({
       </Pressable>
       {showMenu ? (
         <View
-          className="mt-2 w-full rounded-lg bg-white shadow"
+          className="mt-2 w-full rounded-lg shadow"
           style={{
+            backgroundColor: '#FAFAF7',
             borderColor: '#E5E7EB',
             borderWidth: 1,
             shadowColor: '#000',

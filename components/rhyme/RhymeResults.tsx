@@ -8,7 +8,14 @@ interface RhymeResultsProps {
 export const RhymeResults = ({ results, onSelect }: RhymeResultsProps) => {
   if (results.length === 0) {
     return (
-      <View className="mt-3 rounded-xl bg-white px-4 py-4" style={{ borderTopWidth: 2, borderTopColor: '#9DACFF' }}>
+      <View 
+        className="mt-3 rounded-xl px-4 py-4" 
+        style={{ 
+          backgroundColor: '#FAFAF7',
+          borderTopWidth: 2, 
+          borderTopColor: '#9DACFF' 
+        }}
+      >
         <Text className="text-sm text-muted/90">No rhymes found yet.</Text>
       </View>
     );

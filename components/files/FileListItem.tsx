@@ -108,7 +108,7 @@ export const FileListItem = ({
                 width: 28,
                 height: 28,
                 borderRadius: 14,
-                backgroundColor: '#ffffff',
+                backgroundColor: '#FAFAF7',
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginRight: 8,

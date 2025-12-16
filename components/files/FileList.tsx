@@ -65,7 +65,10 @@ export const FileList = ({ isDesktop = false }: FileListProps) => {
   };
 
   return (
-    <View className="flex-1 bg-white px-5 py-6">
+    <View
+      className="flex-1 px-5 py-6"
+      style={{ backgroundColor: '#FAFAF7' }}
+    >
       <View className="flex-1">
         <View className="mb-5 flex-row items-center justify-between">
           <View>
