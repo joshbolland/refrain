@@ -1,7 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRef, useState } from 'react';
 import { Alert, Animated, GestureResponderEvent, Platform, Pressable, Text, View } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
-import { Ionicons } from '@expo/vector-icons';
 
 import type { LyricFile } from '../../types/lyricFile';
 
@@ -129,8 +129,14 @@ export const FileListItem = ({
       disabled={isSwipeOpen}
       className="rounded-xl px-4 py-4"
       style={({ pressed }) => ({
-        backgroundColor: pressed || isSelected ? '#EEF0FF' : '#FFFFFF',
+        backgroundColor: pressed || isSelected ? '#EEF0FF' : 'transparent',
         transform: [{ translateY: pressed ? 1 : 0 }],
+        // Tactile, micro-press feedback with a very subtle, transient shadow
+        shadowColor: pressed ? '#000000' : 'transparent',
+        shadowOpacity: pressed ? 0.06 : 0,
+        shadowRadius: pressed ? 6 : 0,
+        shadowOffset: { width: 0, height: pressed ? 2 : 0 },
+        elevation: pressed ? 2 : 0,
       })}
     >
       <View className="flex-row items-center justify-between">

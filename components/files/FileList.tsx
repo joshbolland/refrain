@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Swipeable } from 'react-native-gesture-handler';
 
 import { useRefrainStore } from '../../store/useRefrainStore';
@@ -121,26 +121,45 @@ export const FileList = ({ isDesktop = false }: FileListProps) => {
           <ScrollView
             className="mt-5"
             contentContainerStyle={{
-              gap: 12,
               paddingBottom: 32,
               width: '100%',
             }}
             showsVerticalScrollIndicator={false}
           >
-            {files.map((file) => (
-              <FileListItem
-                key={file.id}
-                file={file}
-                isSelected={isDesktop && file.id === selectedId}
-                onPress={() => handleSelect(file.id)}
-                onDelete={() => handleDelete(file.id)}
-                onSwipeOpen={handleSwipeOpen}
-                onSwipeClose={handleSwipeClose}
-              />
-            ))}
+            {files.map((file, index) => {
+              const isLast = index === files.length - 1;
+              return (
+                <View
+                  key={file.id}
+                  style={[
+                    styles.rowSeparator,
+                    isLast && styles.rowSeparatorLast,
+                  ]}
+                >
+                  <FileListItem
+                    file={file}
+                    isSelected={isDesktop && file.id === selectedId}
+                    onPress={() => handleSelect(file.id)}
+                    onDelete={() => handleDelete(file.id)}
+                    onSwipeOpen={handleSwipeOpen}
+                    onSwipeClose={handleSwipeClose}
+                  />
+                </View>
+              );
+            })}
           </ScrollView>
         )}
       </View>
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  rowSeparator: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E3E5F0',
+  },
+  rowSeparatorLast: {
+    borderBottomWidth: 0,
+  },
+});
