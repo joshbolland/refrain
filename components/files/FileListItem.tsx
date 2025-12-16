@@ -87,22 +87,22 @@ export const FileListItem = ({
             height: '100%',
             justifyContent: 'center',
           }}
-          >
-            <Pressable
-              className="items-center justify-center rounded-xl"
-              onPress={handleConfirmDelete}
-              style={({ pressed }) => ({
+        >
+          <Pressable
+            className="items-center justify-center rounded-xl"
+            onPress={handleConfirmDelete}
+            style={({ pressed }) => ({
               backgroundColor: '#e71d36',
               width: 108,
-                height: '100%',
-                opacity: pressed ? 0.92 : 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                alignSelf: 'stretch',
-              })}
-            >
+              height: '100%',
+              opacity: pressed ? 0.92 : 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              alignSelf: 'stretch',
+            })}
+          >
             <View
               style={{
                 width: 28,

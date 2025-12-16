@@ -74,7 +74,10 @@ export const FileList = ({ isDesktop = false }: FileListProps) => {
                 Library
               </Text>
             </View>
-            <Text className="mt-2 text-3xl font-semibold text-ink">Your refrains</Text>
+            <Text className="mt-1.5 text-3xl font-semibold text-ink">Your refrains</Text>
+            <Text className="mt-1 text-sm text-muted/80">
+              {query.trim() ? `Showing results for "${query}"` : `${files.length} lyrics`}
+            </Text>
           </View>
           <Pressable
             className="h-10 w-10 items-center justify-center rounded-full border border-accent bg-accentSoft"

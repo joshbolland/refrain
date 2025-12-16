@@ -1,6 +1,7 @@
-import { useEffect, useCallback } from 'react';
-import { Pressable, Text, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect } from 'react';
+import { KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LyricEditor } from '../../components/editor/LyricEditor';
 import { IconSymbol } from '../../components/ui/icon-symbol';
@@ -10,6 +11,7 @@ export default function FileDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const id = params.id ?? null;
   const router = useRouter();
+  const { top: safeAreaTop, bottom: safeAreaBottom } = useSafeAreaInsets();
 
   const { selectFile, init } = useRefrainStore((state) => ({
     selectFile: state.selectFile,
@@ -29,25 +31,34 @@ export default function FileDetailScreen() {
   );
 
   return (
-    <View className="flex-1 bg-white px-4 py-4">
-      <View className="mb-4 flex-row items-center">
-        <Pressable
-          onPress={() => router.back()}
-          className="flex-row items-center rounded-full px-3 py-1.5"
-          style={({ pressed }) => ({
-            backgroundColor: pressed ? '#D7DDFF' : '#E8EBFF',
-            borderColor: '#C7D1FF',
-            borderWidth: 1,
-            transform: [{ translateY: pressed ? 1 : 0 }],
-          })}
-        >
-          <IconSymbol name="chevron.left" size={18} color="#7C8FFF" />
-          <Text className="ml-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#7C8FFF]">
-            Back
-          </Text>
-        </Pressable>
+    <KeyboardAvoidingView
+      className="flex-1"
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
+    >
+      <View
+        className="flex-1 bg-white px-4"
+        style={{ paddingTop: safeAreaTop + 12, paddingBottom: safeAreaBottom + 8 }}
+      >
+        <View className="mb-4 flex-row items-center">
+          <Pressable
+            onPress={() => router.back()}
+            className="flex-row items-center rounded-full px-3 py-1.5"
+            style={({ pressed }) => ({
+              backgroundColor: pressed ? '#D7DDFF' : '#E8EBFF',
+              borderColor: '#C7D1FF',
+              borderWidth: 1,
+              transform: [{ translateY: pressed ? 1 : 0 }],
+            })}
+          >
+            <IconSymbol name="chevron.left" size={18} color="#7C8FFF" />
+            <Text className="ml-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#7C8FFF]">
+              Back
+            </Text>
+          </Pressable>
+        </View>
+        <LyricEditor />
       </View>
-      <LyricEditor />
-    </View>
+    </KeyboardAvoidingView>
   );
 }

@@ -17,6 +17,7 @@ import {
   TextInput,
   TextInputContentSizeChangeEventData,
   TextInputSelectionChangeEventData,
+  TextLayoutEventData,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -26,7 +27,6 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   findPreviousChorusStart,
@@ -141,7 +141,6 @@ const SaveStatus = () => {
 
 export const LyricEditor = () => {
   const { width } = useWindowDimensions();
-  const { bottom: safeAreaBottom } = useSafeAreaInsets();
   const isDesktop = width >= 1024;
   const [showRhymePanel, setShowRhymePanel] = useState(isDesktop);
   const [body, setBody] = useState('');
@@ -158,7 +157,7 @@ export const LyricEditor = () => {
   const [editPickerHeight, setEditPickerHeight] = useState(0);
   const [editingSectionLineIndex, setEditingSectionLineIndex] = useState<number | null>(null);
   const [lineHeights, setLineHeights] = useState<number[]>([]);
-  const [textColumnWidth, setTextColumnWidth] = useState(0);
+  const [, setTextColumnWidth] = useState(0);
   const [badgeViewportHeight, setBadgeViewportHeight] = useState(0);
   const scrollRef = useRef<ComponentRef<typeof Animated.ScrollView> | null>(null);
   const selectionRef = useRef<{ start: number; end: number } | null>(null);
@@ -166,6 +165,7 @@ export const LyricEditor = () => {
   const caretIndexRef = useRef(0);
   const [isEditorFocused, setIsEditorFocused] = useState(false);
   const bodyRef = useRef('');
+  const measuredByTextLayoutRef = useRef<Record<number, boolean>>({});
   const isDraggingRef = useRef(false);
   const lastAutoScrollKey = useRef<string | null>(null);
   const lastScrollUpdateTsRef = useRef(0);
@@ -336,16 +336,22 @@ export const LyricEditor = () => {
       setInputHeight((prev) => (prev === nextHeight ? prev : Math.max(nextHeight, editorLineHeight * 6)));
     }
   };
-  const handleMeasuredLineHeight = useCallback((index: number, height: number) => {
-    setLineHeights((prev) => {
-      if (prev[index] === height) {
-        return prev;
+  const handleMeasuredLineHeight = useCallback(
+    (index: number, measuredHeight: number, options?: { fromLineCount?: boolean }) => {
+      setLineHeights((prev) => {
+        if (prev[index] === measuredHeight) {
+          return prev;
+        }
+        const next = [...prev];
+        next[index] = measuredHeight;
+        return next;
+      });
+      if (options?.fromLineCount) {
+        measuredByTextLayoutRef.current[index] = true;
       }
-      const next = [...prev];
-      next[index] = height;
-      return next;
-    });
-  }, []);
+    },
+    [],
+  );
 
   const applySectionType = useCallback(
     (lineIndex: number, type: SectionType) => {
@@ -690,7 +696,7 @@ export const LyricEditor = () => {
       targetY = upperBound;
     }
 
-    const extraBottomPadding = 24 + editorPaddingBottom + (showRhymePanel ? rhymePanelHeight : 0);
+    const extraBottomPadding = 0;
     const estimatedContentHeight = gutterHeight + editorPaddingTop + editorPaddingBottom + extraBottomPadding;
     const maxScroll = Math.max(0, estimatedContentHeight - viewportHeight);
     targetY = Math.max(0, Math.min(targetY, maxScroll));
@@ -762,8 +768,8 @@ export const LyricEditor = () => {
   }
 
   return (
-    <View className="flex-1" style={{ paddingBottom: safeAreaBottom }}>
-      <View className="flex-1 rounded-xl bg-white">
+    <View className="flex-1">
+      <View className="flex-1 rounded-xl bg-white" style={{ flexShrink: 1, minHeight: 0 }}>
         <View className="w-full" style={{ borderTopWidth: 2, borderTopColor: '#9DACFF' }} />
         <View className="flex-1">
           <View className="px-5 pt-4">
@@ -779,17 +785,18 @@ export const LyricEditor = () => {
             />
           </View>
           <View className="mt-4 w-full" style={{ borderTopWidth: 2, borderTopColor: '#9DACFF' }} />
-          <View className="flex-1 px-5 pb-4">
+          <View className="flex-1 px-5" style={{ minHeight: 0 }}>
             <View
-              className="flex-1 rounded-lg bg-white"
-              style={{ position: 'relative', overflow: 'hidden' }}
+              className="rounded-lg bg-white"
+              style={{ position: 'relative', overflow: 'hidden', flex: 1, minHeight: 0 }}
             >
               <Animated.ScrollView
                 ref={scrollRef}
-                style={{ flex: 1 }}
+                style={{ flex: 1, minHeight: 0 }}
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={{
-                  paddingBottom: 24 + editorPaddingBottom + (showRhymePanel ? rhymePanelHeight : 0),
+                  paddingBottom: 0,
+                  flexGrow: 1,
                 }}
                 onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
                 onScroll={onEditorScroll}
@@ -922,11 +929,23 @@ export const LyricEditor = () => {
                     key={`measure-${index}`}
                     className="font-mono"
                     style={{
-                      width: textColumnWidth || undefined,
                       lineHeight: editorLineHeight,
                       fontSize: editorFontSize,
                     }}
-                    onLayout={(event) => handleMeasuredLineHeight(index, event.nativeEvent.layout.height)}
+                    onTextLayout={(event: NativeSyntheticEvent<TextLayoutEventData>) => {
+                      const lineCount = event.nativeEvent.lines?.length;
+                      if (lineCount === undefined) {
+                        return;
+                      }
+                      const measuredHeight = Math.max(1, lineCount) * editorLineHeight;
+                      handleMeasuredLineHeight(index, measuredHeight, { fromLineCount: true });
+                    }}
+                    onLayout={(event) => {
+                      if (measuredByTextLayoutRef.current[index]) {
+                        return;
+                      }
+                      handleMeasuredLineHeight(index, event.nativeEvent.layout.height);
+                    }}
                   >
                     {line.length === 0 ? ' ' : line}
                   </Text>
@@ -1044,7 +1063,7 @@ export const LyricEditor = () => {
                 </View>
               )}
             </View>
-            <View className="mt-3 flex-row items-center">
+            <View className="flex-row items-center" style={{ marginTop: 4, marginBottom: 8 }}>
               <SaveStatus />
               <View className="ml-auto flex-row items-center" style={{ columnGap: 12 }}>
                 <TogglePill

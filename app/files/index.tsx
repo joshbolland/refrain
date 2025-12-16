@@ -1,6 +1,7 @@
+import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import { View, useWindowDimensions } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LyricEditor } from '../../components/editor/LyricEditor';
 import { SplitPane } from '../../components/editor/SplitPane';
@@ -9,6 +10,7 @@ import { useRefrainStore } from '../../store/useRefrainStore';
 
 export default function FilesScreen() {
   const { width } = useWindowDimensions();
+  const { top: safeAreaTop, bottom: safeAreaBottom } = useSafeAreaInsets();
   const isDesktop = width >= 1024;
   const init = useRefrainStore((state) => state.init);
   const refreshFiles = useRefrainStore((state) => state.refreshFiles);
@@ -34,14 +36,20 @@ export default function FilesScreen() {
 
   if (isDesktop) {
     return (
-      <View className="flex-1 bg-white px-4 py-4">
+      <View
+        className="flex-1 bg-white px-4"
+        style={{ paddingTop: safeAreaTop + 16, paddingBottom: safeAreaBottom + 16 }}
+      >
         <SplitPane left={<FileList isDesktop />} right={<LyricEditor />} />
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-white px-4 py-4">
+    <View
+      className="flex-1 bg-white px-4"
+      style={{ paddingTop: safeAreaTop + 16, paddingBottom: safeAreaBottom + 16 }}
+    >
       <FileList />
     </View>
   );
