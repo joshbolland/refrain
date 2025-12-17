@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
+import { useEffect, useMemo, useState } from 'react';
+import { Keyboard, View } from 'react-native';
 
 import { getRhymes } from '../../rhyme/dictionary';
 import { RhymeResults } from './RhymeResults';
@@ -12,12 +12,27 @@ interface RhymePanelProps {
 
 export const RhymePanel = ({ targetWord }: RhymePanelProps) => {
   const [query, setQuery] = useState(targetWord ?? '');
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   useEffect(() => {
     if (targetWord) {
       setQuery(targetWord);
     }
   }, [targetWord]);
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const searchTerm = query || targetWord || '';
 
@@ -29,16 +44,16 @@ export const RhymePanel = ({ targetWord }: RhymePanelProps) => {
   };
 
   return (
-    <View>
-      <View className="mb-3 flex-row items-baseline justify-between">
-        <Text className="text-sm font-semibold uppercase tracking-[0.16em] text-accent">Rhymes</Text>
-        <Text className="text-xs text-muted/80">
-          {searchTerm ? `for “${searchTerm}”` : 'Pick a word to see rhymes'}
-        </Text>
-      </View>
+    <View
+      className="rounded-2xl"
+      style={isKeyboardVisible ? { maxHeight: 160, overflow: 'hidden' } : undefined}
+    >
       <RhymeSearchInput value={query} onChangeText={setQuery} />
-      <Text className="mt-2 text-xs text-muted/80">Tap a rhyme to copy it over.</Text>
-      <RhymeResults results={results} onSelect={handleSelect} />
+      <RhymeResults
+        results={results}
+        onSelect={handleSelect}
+        isKeyboardVisible={isKeyboardVisible}
+      />
     </View>
   );
 };

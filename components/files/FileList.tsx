@@ -123,6 +123,7 @@ export const FileList = ({ isDesktop = false }: FileListProps) => {
         ) : (
           <ScrollView
             className="mt-5"
+            style={{ backgroundColor: '#FAFAF7' }}
             contentContainerStyle={{
               paddingBottom: 32,
               width: '100%',

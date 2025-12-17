@@ -3,13 +3,14 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 interface RhymeResultsProps {
   results: string[];
   onSelect: (word: string) => void;
+  isKeyboardVisible: boolean;
 }
 
-export const RhymeResults = ({ results, onSelect }: RhymeResultsProps) => {
+export const RhymeResults = ({ results, onSelect, isKeyboardVisible }: RhymeResultsProps) => {
   if (results.length === 0) {
     return (
       <View 
-        className="mt-3 rounded-xl px-4 py-4" 
+        className="mt-2 rounded-xl px-4 py-3" 
         style={{ 
           backgroundColor: '#FAFAF7',
           borderTopWidth: 2, 
@@ -23,16 +24,18 @@ export const RhymeResults = ({ results, onSelect }: RhymeResultsProps) => {
 
   return (
     <ScrollView
-      className="mt-4"
-      style={{ maxHeight: 224 }}
+      className="mt-2"
+      style={isKeyboardVisible ? { maxHeight: 100 } : undefined}
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', paddingBottom: 8 }}
+      showsVerticalScrollIndicator={false}
+      nestedScrollEnabled={true}
+      contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', paddingBottom: 6 }}
     >
       {results.map((word) => (
         <Pressable
           key={word}
           onPress={() => onSelect(word)}
-          className="mr-2 mb-2 rounded-full px-4 py-2"
+          className="mr-1.5 mb-1.5 rounded-full px-4 py-2"
           style={({ pressed }) => ({
             backgroundColor: pressed ? '#7C8FFF' : '#EEF0FF',
           })}

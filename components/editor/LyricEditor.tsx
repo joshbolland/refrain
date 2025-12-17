@@ -9,6 +9,7 @@ import {
 } from 'react';
 import {
   Alert,
+  Keyboard,
   LayoutChangeEvent,
   NativeSyntheticEvent,
   Platform,
@@ -19,7 +20,7 @@ import {
   TextInputSelectionChangeEventData,
   TextLayoutEventData,
   View,
-  useWindowDimensions,
+  useWindowDimensions
 } from 'react-native';
 import Animated, {
   runOnJS,
@@ -146,6 +147,7 @@ export const LyricEditor = () => {
   const [body, setBody] = useState('');
   const [inputHeight, setInputHeight] = useState(editorLineHeight * 8);
   const [rhymePanelHeight, setRhymePanelHeight] = useState(0);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [currentLineIndex, setCurrentLineIndex] = useState(0);
   const [caretIndex, setCaretIndex] = useState(0);
   const [scrollOffset, setScrollOffset] = useState(0);
@@ -198,6 +200,20 @@ export const LyricEditor = () => {
   useEffect(() => {
     setShowRhymePanel(isDesktop);
   }, [isDesktop]);
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const throttledSetScrollOffset = useCallback((y: number) => {
     const now = Date.now();
@@ -758,6 +774,8 @@ export const LyricEditor = () => {
   const isEditPickerOpen = editingSectionLineIndex !== null;
   const isAnyPickerOpen = isNewPickerOpen || isEditPickerOpen;
 
+  const shouldHideTitle = isKeyboardVisible && showRhymePanel;
+
   if (!selectedFile) {
     return (
       <View className="flex-1 items-center justify-center rounded-xl bg-accentSoft px-6 py-12">
@@ -775,20 +793,27 @@ export const LyricEditor = () => {
       >
         <View className="w-full" style={{ borderTopWidth: 2, borderTopColor: '#9DACFF' }} />
         <View className="flex-1">
-          <View className="px-5 pt-4">
-            <TextInput
-              value={selectedFile.title}
-              onChangeText={(text) => void updateSelectedFile({ title: text })}
-              placeholder="Title"
-              className="text-3xl font-semibold tracking-tight text-ink"
-              style={{ textAlign: 'center' }}
-              placeholderTextColor="#9CA3AF"
-              selectionColor="#9DACFF"
-              cursorColor="#9DACFF"
-            />
-          </View>
-          <View className="mt-4 w-full" style={{ borderTopWidth: 2, borderTopColor: '#9DACFF' }} />
-          <View className="flex-1 px-5" style={{ minHeight: 0 }}>
+          {!shouldHideTitle && (
+            <>
+              <View className="px-5 pt-4">
+                <TextInput
+                  value={selectedFile.title}
+                  onChangeText={(text) => void updateSelectedFile({ title: text })}
+                  placeholder="Title"
+                  className="text-3xl font-semibold tracking-tight text-ink"
+                  style={{ textAlign: 'center', backgroundColor: 'transparent' }}
+                  placeholderTextColor="#9CA3AF"
+                  selectionColor="#9DACFF"
+                  cursorColor="#9DACFF"
+                />
+              </View>
+              <View className="mt-4 w-full" style={{ borderTopWidth: 2, borderTopColor: '#9DACFF' }} />
+            </>
+          )}
+          <View
+            className="flex-1 px-5"
+            style={{ minHeight: 0, paddingTop: shouldHideTitle ? 8 : 0 }}
+          >
             <View
               className="rounded-lg"
               style={{
@@ -801,7 +826,7 @@ export const LyricEditor = () => {
             >
               <Animated.ScrollView
                 ref={scrollRef}
-                style={{ flex: 1, minHeight: 0 }}
+                style={{ flex: 1, minHeight: 0, backgroundColor: '#FAFAF7' }}
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={{
                   paddingBottom: 0,
@@ -871,6 +896,7 @@ export const LyricEditor = () => {
                         paddingVertical: 0,
                         color: '#111827',
                         textAlignVertical: 'top',
+                        backgroundColor: 'transparent',
                       }}
                       className="font-mono text-ink"
                       placeholderTextColor="#9CA3AF"
@@ -1087,11 +1113,18 @@ export const LyricEditor = () => {
       </View>
       {showRhymePanel && (
         <View
-          className="mt-4 rounded-xl p-4"
+          className="rounded-xl"
           style={{
             backgroundColor: '#FAFAF7',
             borderTopWidth: 2,
-            borderTopColor: '#9DACFF'
+            borderTopColor: '#9DACFF',
+            marginTop: isKeyboardVisible ? 2 : 12,
+            paddingTop: 8,
+            paddingLeft: 16,
+            paddingRight: 16,
+            paddingBottom: isKeyboardVisible ? 2 : 8,
+            maxHeight: 140,
+            overflow: 'hidden',
           }}
           onLayout={(event) => setRhymePanelHeight(event.nativeEvent.layout.height)}
         >
