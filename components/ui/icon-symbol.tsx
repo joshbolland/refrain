@@ -19,6 +19,13 @@ const MAPPING = {
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
   'chevron.left': 'chevron-left',
+  'checkmark.circle.fill': 'check-circle',
+  trash: 'delete',
+  mic: 'mic',
+  pause: 'pause',
+  'play.fill': 'play-circle',
+  'trash': 'delete',
+  'checkmark.circle.fill': 'check-circle',
 } as IconMapping;
 
 /**

@@ -47,6 +47,7 @@ import {
 } from './editorMetrics';
 import { SECTION_TYPE_COLORS, SectionChipsRow } from './SectionChipsRow';
 import { TogglePill } from './TogglePill';
+import { CollectionsSheet } from '../collections/CollectionsSheet';
 
 const isInBlankRun = (lines: string[], index: number): boolean => {
   const currentBlank = isBlankLine(lines[index] ?? '');
@@ -148,6 +149,7 @@ export const LyricEditor = () => {
   const [inputHeight, setInputHeight] = useState(editorLineHeight * 8);
   const [rhymePanelHeight, setRhymePanelHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [isCollectionsSheetOpen, setIsCollectionsSheetOpen] = useState(false);
   const [currentLineIndex, setCurrentLineIndex] = useState(0);
   const [caretIndex, setCaretIndex] = useState(0);
   const [scrollOffset, setScrollOffset] = useState(0);
@@ -1101,6 +1103,18 @@ export const LyricEditor = () => {
             <View className="flex-row items-center" style={{ marginTop: 4, marginBottom: 8 }}>
               <SaveStatus />
               <View className="ml-auto flex-row items-center" style={{ columnGap: 12 }}>
+                <Pressable
+                  onPress={() => setIsCollectionsSheetOpen(true)}
+                  className="flex-row items-center rounded-full border border-[#E3E5F0] bg-accentSoft px-3 py-1.5"
+                  style={({ pressed }) => ({
+                    transform: [{ translateY: pressed ? 1 : 0 }],
+                    opacity: pressed ? 0.92 : 1,
+                  })}
+                >
+                  <Text className="text-xs font-semibold uppercase tracking-[0.14em] text-accent">
+                    Collections
+                  </Text>
+                </Pressable>
                 <TogglePill
                   label="Rhymes"
                   isActive={showRhymePanel}
@@ -1131,6 +1145,11 @@ export const LyricEditor = () => {
           <RhymePanel targetWord={targetRhymeWord} />
         </View>
       )}
+      <CollectionsSheet
+        visible={isCollectionsSheetOpen}
+        onClose={() => setIsCollectionsSheetOpen(false)}
+        item={{ id: selectedFile.id, type: 'lyric' }}
+      />
     </View>
   );
 };

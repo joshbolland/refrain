@@ -1,18 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRef, useState } from 'react';
-import { Alert, Animated, GestureResponderEvent, Platform, Pressable, Text, View } from 'react-native';
+import { Alert, Animated, Platform, Pressable, Text, View } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 
-import type { LyricFile } from '../../types/lyricFile';
+import type { RecordingItem } from '../../types/recording';
 
-interface FileListItemProps {
-  file: LyricFile;
-  isSelected?: boolean;
+interface RecordingListItemProps {
+  recording: RecordingItem;
   onPress: () => void;
   onDelete: () => Promise<void>;
+  onLongPress?: () => void;
   onSwipeOpen?: (instance: Swipeable | null) => void;
   onSwipeClose?: (instance: Swipeable | null) => void;
-  onLongPress?: () => void;
 }
 
 const formatUpdated = (timestamp: number): string => {
@@ -23,15 +22,19 @@ const formatUpdated = (timestamp: number): string => {
   });
 };
 
-export const FileListItem = ({
-  file,
-  isSelected = false,
+const formatDurationSeconds = (ms: number): string => {
+  const sec = Math.max(1, Math.round(ms / 1000));
+  return `${sec}s`;
+};
+
+export const RecordingListItem = ({
+  recording,
   onPress,
   onDelete,
+  onLongPress,
   onSwipeOpen,
   onSwipeClose,
-  onLongPress,
-}: FileListItemProps) => {
+}: RecordingListItemProps) => {
   const swipeableRef = useRef<Swipeable | null>(null);
   const [isSwipeOpen, setIsSwipeOpen] = useState(false);
   const isWeb = Platform.OS === 'web';
@@ -42,30 +45,25 @@ export const FileListItem = ({
   };
 
   const handleConfirmDelete = () => {
-    const removeFile = async () => {
+    const remove = async () => {
       await onDelete();
       closeSwipe();
     };
 
     if (isWeb && typeof window !== 'undefined' && typeof window.confirm === 'function') {
-      const confirmed = window.confirm('Delete lyric?\n\nThis can’t be undone.');
+      const confirmed = window.confirm('Delete recording?\n\nThis can’t be undone.');
       if (confirmed) {
-        void removeFile();
+        void remove();
       } else {
         closeSwipe();
       }
       return;
     }
 
-    Alert.alert('Delete lyric?', "This can’t be undone.", [
+    Alert.alert('Delete recording?', "This can’t be undone.", [
       { text: 'Cancel', style: 'cancel', onPress: closeSwipe },
-      { text: 'Delete', style: 'destructive', onPress: () => void removeFile() },
+      { text: 'Delete', style: 'destructive', onPress: () => void remove() },
     ]);
-  };
-
-  const handleWebDeletePress = (event: GestureResponderEvent) => {
-    event.stopPropagation();
-    handleConfirmDelete();
   };
 
   const renderRightActions = (
@@ -132,44 +130,27 @@ export const FileListItem = ({
       disabled={isSwipeOpen}
       className="rounded-xl px-4 py-4"
       style={({ pressed }) => ({
-        backgroundColor: pressed || isSelected ? '#EEF0FF' : 'transparent',
+        backgroundColor: pressed ? '#EEF0FF' : 'transparent',
         transform: [{ translateY: pressed ? 1 : 0 }],
-        // Tactile, micro-press feedback with a very subtle, transient shadow
-        shadowColor: pressed ? '#000000' : 'transparent',
-        shadowOpacity: pressed ? 0.06 : 0,
-        shadowRadius: pressed ? 6 : 0,
-        shadowOffset: { width: 0, height: pressed ? 2 : 0 },
-        elevation: pressed ? 2 : 0,
       })}
     >
       <View className="flex-row items-center justify-between">
-        <Text
-          className={`flex-1 text-base font-semibold ${isSelected ? 'text-accent' : 'text-ink'}`}
-          numberOfLines={1}
-        >
-          {file.title || 'Untitled'}
-        </Text>
-        <View className="ml-3 flex-row items-center">
-          {isWeb ? (
-            <Pressable
-              onPress={handleWebDeletePress}
-              hitSlop={10}
-              className="rounded-full p-2"
-              style={({ pressed }) => ({
-                backgroundColor: pressed ? '#F3F3F3' : 'transparent',
-                transform: [{ translateY: pressed ? 1 : 0 }],
-              })}
-            >
-              <Ionicons name="trash" size={18} color="#e71d36" />
-            </Pressable>
-          ) : null}
-          <Text className="ml-3 text-xs uppercase tracking-[0.08em] text-muted/80">
-            {formatUpdated(file.updatedAt)}
+        <View className="flex-row items-center" style={{ gap: 8 }}>
+          <View className="rounded-full bg-accentSoft px-3 py-1">
+            <Text className="text-xs font-semibold uppercase tracking-[0.14em] text-accent">
+              Recording
+            </Text>
+          </View>
+          <Text className="text-base font-semibold text-ink" numberOfLines={1}>
+            {recording.title}
           </Text>
         </View>
+        <Text className="text-xs uppercase tracking-[0.08em] text-muted/80">
+          {formatDurationSeconds(recording.durationMs)}
+        </Text>
       </View>
-      <Text className="mt-2 text-sm leading-relaxed text-muted/90" numberOfLines={2}>
-        {file.body.trim().length > 0 ? file.body.trim() : 'Every song starts somewhere.'}
+      <Text className="mt-2 text-sm text-muted/90" numberOfLines={2}>
+        Saved {formatUpdated(recording.updatedAt)}
       </Text>
     </Pressable>
   );

@@ -16,7 +16,7 @@ A cross-platform lyric-writing scaffold (Expo Router + NativeWind + Zustand) wit
 - **UI**: NativeWind styling; gutters show line numbers, syllable counts, and rhyme color markers. The rhyme panel toggles in the editor and supports copy-to-clipboard suggestions.
 
 ## Notes
-- App name is “Refrain”. No auth/back-end; everything stays local.
+- App name is “Refrain”. Authentication uses Supabase (email/password); set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in `.env`.
 - Works on web and iOS via `npx expo start` (web with `w`, iOS with `i`).
 
 ## Rebuilding the rhyme dictionary
