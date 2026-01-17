@@ -2,7 +2,7 @@ import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Pressable, SafeAreaView, Text, View } from 'react-native';
+import { Alert, Animated, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '../../components/ui/icon-symbol';
@@ -152,7 +152,6 @@ export default function RecordScreen() {
       startMetering();
     } catch (error) {
       Alert.alert('Recording failed', 'Could not start recording. Please try again.');
-      console.error('start recording error', error);
     }
   };
 
@@ -246,7 +245,6 @@ export default function RecordScreen() {
       router.back();
     } catch (error) {
       Alert.alert('Save failed', 'Could not finalize recording. Please try again.');
-      console.error('save error', error);
     }
   };
 
@@ -258,7 +256,7 @@ export default function RecordScreen() {
   const primaryLabel = isRecording ? 'Pause' : isPaused ? 'Resume' : 'Start';
 
   return (
-    <SafeAreaView
+    <View
       className="flex-1 bg-[#FAFAF7] px-4"
       style={{ paddingTop: top + 12, paddingBottom: bottom + 12 }}
     >
@@ -433,6 +431,6 @@ export default function RecordScreen() {
           </View>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }

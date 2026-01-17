@@ -7,7 +7,6 @@ import {
   Easing,
   Keyboard,
   Pressable,
-  SafeAreaView,
   Text,
   TextInput,
   TouchableWithoutFeedback,
@@ -181,7 +180,7 @@ export default function RecordingDetailScreen() {
 
   if (!recording) {
     return (
-      <SafeAreaView
+      <View
         className="flex-1 items-center justify-center bg-[#FAFAF7]"
         style={{ paddingTop: top + 24, paddingBottom: bottom + 24 }}
       >
@@ -201,7 +200,7 @@ export default function RecordingDetailScreen() {
             Back
           </Text>
         </Pressable>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -215,7 +214,7 @@ export default function RecordingDetailScreen() {
       }}
       accessible={false}
     >
-      <SafeAreaView
+      <View
         className="flex-1 bg-[#FAFAF7] px-4"
         style={{ paddingTop: top + 12, paddingBottom: bottom + 12 }}
       >
@@ -320,7 +319,7 @@ export default function RecordingDetailScreen() {
             </Pressable>
           </View>
         </View>
-      </SafeAreaView>
+      </View>
     </TouchableWithoutFeedback>
   );
 }

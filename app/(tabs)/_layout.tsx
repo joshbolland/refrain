@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
   },
   actionGrid: {
     flexDirection: 'row',
-    gap: 24,
+    gap: 18,
     flexWrap: 'wrap',
     justifyContent: 'center',
   },
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
     width: '100%',
     borderWidth: 1,
     borderColor: '#D5DAF1',
-    paddingHorizontal: 36,
+    paddingHorizontal: 24,
     paddingVertical: 16,
     borderRadius: 18,
   },

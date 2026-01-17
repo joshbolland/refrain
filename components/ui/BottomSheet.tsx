@@ -67,35 +67,42 @@ export function BottomSheet({ visible, onClose, title, children }: BottomSheetPr
       visible={isMounted}
       onRequestClose={onClose}
     >
-      <AnimatedPressable
-        style={[styles.backdrop, { opacity: backdropOpacity }]}
-        onPress={onClose}
-      />
-      <Animated.View
-        style={[
-          styles.sheet,
-          { paddingBottom: insets.bottom + 16, transform: [{ translateY }] },
-        ]}
-      >
-        <View style={styles.grabber} />
-        {title ? (
-          <Text
-            className="mb-3 text-base font-semibold text-ink"
-            style={{ textAlign: 'center' }}
-          >
-            {title}
-          </Text>
-        ) : null}
-        {children}
-      </Animated.View>
+      <View style={styles.container} pointerEvents="box-none">
+        <AnimatedPressable
+          style={[styles.backdrop, { opacity: backdropOpacity }]}
+          onPress={onClose}
+        />
+        <Animated.View
+          style={[
+            styles.sheet,
+            { paddingBottom: insets.bottom + 16, transform: [{ translateY }] },
+          ]}
+        >
+          <View style={styles.grabber} />
+          {title ? (
+            <Text
+              className="mb-3 text-base font-semibold text-ink"
+              style={{ textAlign: 'center' }}
+            >
+              {title}
+            </Text>
+          ) : null}
+          {children}
+        </Animated.View>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.25)',
+    zIndex: 1,
   },
   sheet: {
     marginTop: 'auto',
@@ -110,6 +117,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 8,
     gap: 12,
+    zIndex: 2,
   },
   grabber: {
     alignSelf: 'center',

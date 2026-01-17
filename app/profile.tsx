@@ -79,13 +79,20 @@ const Row = ({
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user, signOut } = useAuthStore((state) => ({
+  const { user, signOut, linkWithOAuth, linkingProvider } = useAuthStore((state) => ({
     user: state.user,
     signOut: state.signOut,
+    linkWithOAuth: state.linkWithOAuth,
+    linkingProvider: state.linkingProvider,
   }));
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const profile = useMemo(() => getUserProfile(user), [user]);
+  const hasGoogleLinked = useMemo(
+    () => Boolean(user?.identities?.some((identity) => identity.provider?.toLowerCase() === 'google')),
+    [user?.identities],
+  );
+  const isLinkingGoogle = linkingProvider === 'google';
   const appVersion = Constants?.expoConfig?.version ?? Constants?.manifest?.version ?? '0.0.0';
 
   const handlePlaceholder = (title: string) => {
@@ -116,6 +123,18 @@ export default function ProfileScreen() {
       Alert.alert('Sign out failed', message);
     } finally {
       setIsSigningOut(false);
+    }
+  };
+
+  const handleLinkGoogle = async () => {
+    if (hasGoogleLinked || isLinkingGoogle) {
+      return;
+    }
+    try {
+      await linkWithOAuth('google');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not start Google linking.';
+      Alert.alert('Link Google', message);
     }
   };
 
@@ -162,6 +181,24 @@ export default function ProfileScreen() {
         </View>
 
         <SectionCard title="Account">
+          <Row
+            label={hasGoogleLinked ? 'Google linked' : 'Link Google account'}
+            value={
+              isLinkingGoogle
+                ? 'Opening Google...'
+                : hasGoogleLinked
+                  ? 'You can sign in with Google.'
+                  : undefined
+            }
+            helper={
+              hasGoogleLinked
+                ? 'Google is connected to this profile.'
+                : 'Add Google as a sign-in option and avoid duplicate accounts.'
+            }
+            icon="logo-google"
+            rightIcon={hasGoogleLinked ? 'checkmark-circle-outline' : 'chevron-forward'}
+            onPress={hasGoogleLinked || isLinkingGoogle ? undefined : handleLinkGoogle}
+          />
           <Row
             label="Sign out"
             value={isSigningOut ? 'Signing out...' : 'Switch accounts or exit'}

@@ -60,11 +60,11 @@ const handleError = (error: PostgrestError | null) => {
 };
 
 const getUserIdOrThrow = async (): Promise<string> => {
-  const { data, error } = await supabase.auth.getUser();
+  const { data, error } = await supabase.auth.getSession();
   if (error) {
     throw new Error(error.message);
   }
-  const userId = data.user?.id;
+  const userId = data.session?.user?.id;
   if (!userId) {
     throw new Error('No authenticated user for collection operation.');
   }
@@ -80,7 +80,7 @@ export const createSupabaseCollectionRepository = (): CollectionRepository => ({
     const userId = await getUserIdOrThrow();
     const { data, error } = await supabase
       .from('collections')
-      .select('id, title, description, created_at, updated_at, collection_items(count)')
+      .select('id, title, description, created_at, updated_at')
       .eq('user_id', userId)
       .order('updated_at', { ascending: false });
 

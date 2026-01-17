@@ -1,17 +1,17 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Swipeable } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { UserAvatar } from '../profile/UserAvatar';
-import { useRefrainStore } from '../../store/useRefrainStore';
-import { useAuthStore } from '../../store/useAuthStore';
-import type { LyricFileId } from '../../types/lyricFile';
-import type { LibraryItem } from '../../types/library';
-import type { RecordingId } from '../../types/recording';
 import { getUserProfile } from '../../lib/userProfile';
+import { useAuthStore } from '../../store/useAuthStore';
+import { useRefrainStore } from '../../store/useRefrainStore';
+import type { LibraryItem } from '../../types/library';
+import type { LyricFileId } from '../../types/lyricFile';
+import type { RecordingId } from '../../types/recording';
 import { CollectionsSheet } from '../collections/CollectionsSheet';
+import { UserAvatar } from '../profile/UserAvatar';
 import { BottomSheet } from '../ui/BottomSheet';
 import { FileListItem } from './FileListItem';
 import { FileSearchBar } from './FileSearchBar';
@@ -45,8 +45,7 @@ export const FileList = ({ isDesktop = false }: FileListProps) => {
       deleteRecording: state.deleteRecording,
     }));
   const openSwipeRef = useRef<Swipeable | null>(null);
-  const [actionSheetVisible, setActionSheetVisible] = useState(false);
-  const [collectionSheetVisible, setCollectionSheetVisible] = useState(false);
+  const [sheetMode, setSheetMode] = useState<'actions' | 'collections' | null>(null);
   const [targetItem, setTargetItem] = useState<{ type: LibraryItem['type']; id: string } | null>(null);
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
   const hasFilters = filterType !== 'all' || filterCollectionIds.length > 0;
@@ -86,22 +85,21 @@ export const FileList = ({ isDesktop = false }: FileListProps) => {
 
   const handleOpenActions = (item: { type: LibraryItem['type']; id: string }) => {
     setTargetItem(item);
-    setActionSheetVisible(true);
+    setSheetMode('actions');
   };
 
   const handleAddToCollection = () => {
     if (!targetItem) {
       return;
     }
-    setActionSheetVisible(false);
-    setCollectionSheetVisible(true);
+    setSheetMode('collections');
   };
 
   const handleConfirmDelete = async () => {
     if (!targetItem) {
       return;
     }
-    setActionSheetVisible(false);
+    setSheetMode(null);
     if (targetItem.type === 'lyric') {
       await handleDelete(targetItem.id as LyricFileId);
     } else {
@@ -123,13 +121,18 @@ export const FileList = ({ isDesktop = false }: FileListProps) => {
     }
   };
 
+  const closeSheets = () => {
+    setSheetMode(null);
+    setTargetItem(null);
+  };
+
   return (
     <>
       <View style={styles.container}>
         {/* full-bleed purple background behind header (reaches status bar edges) */}
         <View style={[styles.headerBg, { height: insets.top + 120 }]} />
 
-        <SafeAreaView
+        <View
           className="w-full"
           style={{ backgroundColor: 'transparent', paddingTop: insets.top + 18, paddingBottom: 28, width: '100%', zIndex: 2 }}
         >
@@ -172,7 +175,7 @@ export const FileList = ({ isDesktop = false }: FileListProps) => {
               />
             </View>
           </View>
-        </SafeAreaView>
+        </View>
 
         <View
           className="flex-1"
@@ -266,48 +269,56 @@ export const FileList = ({ isDesktop = false }: FileListProps) => {
       </View>
 
       <BottomSheet
-        visible={actionSheetVisible}
-        onClose={() => {
-          setActionSheetVisible(false);
-          setTargetItem(null);
-        }}
-        title={targetItem?.type === 'recording' ? 'Recording actions' : 'Lyric actions'}
+        visible={sheetMode !== null}
+        onClose={closeSheets}
+        title={
+          sheetMode === 'collections'
+            ? 'Collections'
+            : targetItem?.type === 'recording'
+              ? 'Recording actions'
+              : 'Lyric actions'
+        }
       >
-        <Pressable
-          disabled={!targetItem}
-          onPress={handleAddToCollection}
-          className="flex-row items-center rounded-2xl border border-[#E3E5F0] bg-accentSoft px-4 py-3"
-          style={({ pressed }) => ({
-            opacity: pressed ? 0.92 : 1,
-            transform: [{ translateY: pressed ? 1 : 0 }],
-          })}
-        >
-          <Text className="text-base font-semibold text-ink">Add to collection</Text>
-          <Text className="ml-auto text-xs uppercase tracking-[0.12em] text-muted/80">Select</Text>
-        </Pressable>
-        <Pressable
-          disabled={!targetItem}
-          onPress={handleConfirmDelete}
-          className="flex-row items-center rounded-2xl border border-[#E3E5F0] bg-white px-4 py-3"
-          style={({ pressed }) => ({
-            opacity: pressed ? 0.92 : 1,
-            transform: [{ translateY: pressed ? 1 : 0 }],
-          })}
-        >
-          <Text className="text-base font-semibold text-red-500">
-            {targetItem?.type === 'recording' ? 'Delete recording' : 'Delete lyric'}
-          </Text>
-        </Pressable>
+        {sheetMode === 'actions' ? (
+          <>
+            <Pressable
+              disabled={!targetItem}
+              onPress={handleAddToCollection}
+              className="flex-row items-center rounded-2xl border border-[#E3E5F0] bg-accentSoft px-4 py-3"
+              style={({ pressed }) => ({
+                opacity: pressed ? 0.92 : 1,
+                transform: [{ translateY: pressed ? 1 : 0 }],
+              })}
+            >
+              <Text className="text-base font-semibold text-ink">Add to collection</Text>
+              <Text className="ml-auto text-xs uppercase tracking-[0.12em] text-muted/80">Select</Text>
+            </Pressable>
+            <Pressable
+              disabled={!targetItem}
+              onPress={handleConfirmDelete}
+              className="flex-row items-center rounded-2xl border border-[#E3E5F0] bg-white px-4 py-3"
+              style={({ pressed }) => ({
+                opacity: pressed ? 0.92 : 1,
+                transform: [{ translateY: pressed ? 1 : 0 }],
+              })}
+            >
+              <Text className="text-base font-semibold text-red-500">
+                {targetItem?.type === 'recording' ? 'Delete recording' : 'Delete lyric'}
+              </Text>
+            </Pressable>
+          </>
+        ) : null}
+
+        {sheetMode === 'collections' ? (
+          <CollectionsSheet
+            visible
+            inline
+            item={targetItem}
+            onClose={closeSheets}
+          />
+        ) : null}
       </BottomSheet>
 
-      <CollectionsSheet
-        visible={collectionSheetVisible}
-        item={targetItem}
-        onClose={() => {
-          setCollectionSheetVisible(false);
-          setTargetItem(null);
-        }}
-      />
       <LibraryFilterSheet
         visible={filterSheetVisible}
         onClose={() => setFilterSheetVisible(false)}

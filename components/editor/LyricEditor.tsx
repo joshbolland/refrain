@@ -385,10 +385,6 @@ export const LyricEditor = () => {
         setPickerMode('new');
         return;
       }
-      if (__DEV__) {
-
-        console.log('Section picker apply', { lineIndex, type, value: nextSectionTypes[lineIndex] });
-      }
       void updateSelectedFile({ sectionTypes: nextSectionTypes });
       setPickerLineIndex(null);
       setPickerMode('new');
@@ -521,9 +517,6 @@ export const LyricEditor = () => {
     async (type: SectionType) => {
       // Edit overlay flow
       if (editingSectionLineIndex !== null) {
-        if (__DEV__) {
-          console.log('Section picker select', { targetLineIndex: editingSectionLineIndex, type });
-        }
         applySectionType(editingSectionLineIndex, type);
         setEditingSectionLineIndex(null);
         setPickerLineIndex(null);
@@ -608,9 +601,6 @@ export const LyricEditor = () => {
         }
       }
 
-      if (__DEV__) {
-        console.log('Section picker select', { targetLineIndex: pickerLineIndex, type });
-      }
       applySectionType(pickerLineIndex, type);
       setEditingSectionLineIndex(null);
       requestAnimationFrame(() => {

@@ -52,8 +52,8 @@ export const cleanupSectionTypes = (
   if (typeof __DEV__ !== 'undefined' && __DEV__) {
     const removed = Object.keys(sectionTypes).filter((key) => !validStarts.has(Number(key)));
     if (removed.length > 0) {
-      // eslint-disable-next-line no-console
-      console.log('cleanupSectionTypes removed invalid starts', { removed });
+      // keep in case future debugging is needed
+      void removed;
     }
   }
 

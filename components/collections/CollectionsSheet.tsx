@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
 import { useRefrainStore } from '../../store/useRefrainStore';
@@ -10,11 +10,14 @@ interface CollectionsSheetProps {
   visible: boolean;
   item: { id: string; type: CollectionItemType } | null;
   onClose: () => void;
+  inline?: boolean;
 }
 
-export function CollectionsSheet({ visible, item, onClose }: CollectionsSheetProps) {
+export function CollectionsSheet({ visible, item, onClose, inline = false }: CollectionsSheetProps) {
   const [title, setTitle] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<CollectionId[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
   const collections = useRefrainStore((state) => state.collectionsWithCounts());
   const assignedIds = useRefrainStore((state) =>
     item ? state.collectionIdsForItem(item.type, item.id) : [],
@@ -23,12 +26,38 @@ export function CollectionsSheet({ visible, item, onClose }: CollectionsSheetPro
   const assignItemToCollection = useRefrainStore((state) => state.assignItemToCollection);
   const removeItemFromCollection = useRefrainStore((state) => state.removeItemFromCollection);
 
+  const assignedIdsKey = useMemo(() => assignedIds.slice().sort().join('|'), [assignedIds]);
+  const prevVisibleRef = useRef(visible);
+  const prevItemKeyRef = useRef<string | null>(null);
+  const prevAssignedKeyRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!visible) {
-      setTitle('');
-      setIsCreating(false);
+    const itemKey = item ? `${item.type}:${item.id}` : null;
+    const becameHidden = prevVisibleRef.current && !visible;
+    const itemChanged = itemKey !== prevItemKeyRef.current;
+    const assignmentsChanged = assignedIdsKey !== prevAssignedKeyRef.current;
+
+    if (!visible || !item) {
+      if (becameHidden || itemChanged || prevVisibleRef.current !== visible) {
+        setTitle('');
+        setIsCreating(false);
+        setSelectedIds([]);
+        setIsSaving(false);
+      }
+      prevVisibleRef.current = visible;
+      prevItemKeyRef.current = itemKey;
+      prevAssignedKeyRef.current = assignedIdsKey;
+      return;
     }
-  }, [visible]);
+
+    if (visible && (assignmentsChanged || itemChanged || !prevVisibleRef.current)) {
+      setSelectedIds(assignedIds);
+    }
+
+    prevVisibleRef.current = visible;
+    prevItemKeyRef.current = itemKey;
+    prevAssignedKeyRef.current = assignedIdsKey;
+  }, [assignedIds, assignedIdsKey, item, visible]);
 
   const hasCollections = collections.length > 0;
   const canAssign = Boolean(item);
@@ -36,15 +65,10 @@ export function CollectionsSheet({ visible, item, onClose }: CollectionsSheetPro
 
   const sortedCollections = useMemo(() => collections, [collections]);
 
-  const handleToggle = async (collectionId: CollectionId) => {
-    if (!canAssign || !item) {
-      return;
-    }
-    if (assignedIds.includes(collectionId)) {
-      await removeItemFromCollection(item.id, item.type, collectionId);
-    } else {
-      await assignItemToCollection(item.id, item.type, collectionId);
-    }
+  const handleToggle = (collectionId: CollectionId) => {
+    setSelectedIds((prev) =>
+      prev.includes(collectionId) ? prev.filter((id) => id !== collectionId) : [collectionId, ...prev],
+    );
   };
 
   const handleCreate = async () => {
@@ -52,16 +76,35 @@ export function CollectionsSheet({ visible, item, onClose }: CollectionsSheetPro
       return;
     }
     setIsCreating(true);
-    const collection = await createCollection(titleTrimmed);
-    if (canAssign && item) {
-      await assignItemToCollection(item.id, item.type, collection.id);
+    try {
+      const collection = await createCollection(titleTrimmed);
+      setSelectedIds((prev) => [collection.id, ...prev]);
+      setTitle('');
+    } finally {
+      setIsCreating(false);
     }
-    setTitle('');
-    setIsCreating(false);
   };
 
-  return (
-    <BottomSheet visible={visible} onClose={onClose} title="Collections">
+  const handleSave = async () => {
+    if (!item || isSaving) {
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const toAdd = selectedIds.filter((id) => !assignedIds.includes(id));
+      const toRemove = assignedIds.filter((id) => !selectedIds.includes(id));
+      await Promise.all([
+        ...toAdd.map((collectionId) => assignItemToCollection(item.id, item.type, collectionId)),
+        ...toRemove.map((collectionId) => removeItemFromCollection(item.id, item.type, collectionId)),
+      ]);
+      onClose();
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const content = (
+    <>
       <View className="mb-3 flex-row items-center rounded-2xl border border-[#E3E5F0] bg-accentSoft px-3 py-2.5">
         <Ionicons name="folder-open-outline" size={18} color="#7C8FFF" />
         <TextInput
@@ -95,7 +138,7 @@ export function CollectionsSheet({ visible, item, onClose }: CollectionsSheetPro
       {hasCollections ? (
         <View style={{ gap: 8, paddingBottom: 4 }}>
           {sortedCollections.map((collection) => {
-            const isSelected = assignedIds.includes(collection.id);
+            const isSelected = selectedIds.includes(collection.id);
             const countLabel =
               typeof collection.itemCount === 'number'
                 ? `${collection.itemCount} ${collection.itemCount === 1 ? 'item' : 'items'}`
@@ -103,7 +146,7 @@ export function CollectionsSheet({ visible, item, onClose }: CollectionsSheetPro
             return (
               <Pressable
                 key={collection.id}
-                onPress={() => void handleToggle(collection.id)}
+                onPress={() => handleToggle(collection.id)}
                 className="flex-row items-center rounded-2xl border border-[#E3E5F0] bg-white px-4 py-3"
                 style={({ pressed }) => ({
                   opacity: pressed ? 0.92 : 1,
@@ -136,6 +179,36 @@ export function CollectionsSheet({ visible, item, onClose }: CollectionsSheetPro
           <Text className="mt-1 text-sm text-muted/80">Create one above to get started.</Text>
         </View>
       )}
+
+      <Pressable
+        disabled={!canAssign || isSaving}
+        onPress={handleSave}
+        className="mt-3 items-center rounded-full px-4 py-3"
+        style={({ pressed }) => ({
+          backgroundColor: pressed && !isSaving ? '#D7DDFF' : '#E8EBFF',
+          borderColor: '#C7D1FF',
+          borderWidth: 1,
+          opacity: !canAssign || isSaving ? 0.6 : 1,
+          transform: [{ translateY: pressed ? 1 : 0 }],
+        })}
+      >
+        <Text className="text-base font-semibold text-accent">
+          {isSaving ? 'Saving…' : 'Save collections'}
+        </Text>
+      </Pressable>
+    </>
+  );
+
+  if (inline) {
+    if (!visible) {
+      return null;
+    }
+    return content;
+  }
+
+  return (
+    <BottomSheet visible={visible} onClose={onClose} title="Collections">
+      {content}
     </BottomSheet>
   );
 }

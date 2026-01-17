@@ -4,7 +4,6 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
@@ -135,7 +134,7 @@ export default function CollectionsScreen() {
     <View className="flex-1" style={{ backgroundColor: '#FAFAF7' }}>
       <View style={[styles.headerBg, { height: top + 120 }]} />
 
-      <SafeAreaView
+      <View
         className="w-full"
         style={{
           backgroundColor: 'transparent',
@@ -167,7 +166,7 @@ export default function CollectionsScreen() {
             style={{ borderColor: '#E3E5F0', borderWidth: 1 }}
           />
         </View>
-      </SafeAreaView>
+      </View>
 
       <View
         className="flex-1 px-5"
@@ -182,24 +181,20 @@ export default function CollectionsScreen() {
             <Text className="mt-2 text-sm text-muted/80">Loading your collections...</Text>
           </View>
         ) : collections.length === 0 ? (
-          <View className="mt-8 rounded-2xl bg-white px-4 py-5" style={{ borderColor: '#E3E5F0', borderWidth: 1 }}>
-            <Text className="text-lg font-semibold text-ink">No collections yet</Text>
-            <Text className="mt-2 text-sm text-muted/80">
-              Organize lyrics and recordings into sets for projects, shows, or moods.
-            </Text>
+          <View className="mt-6">
             <Pressable
               onPress={openCreateForm}
-              className="mt-4 self-start rounded-full px-3 py-1.5"
+              className="rounded-2xl border-2 border-dashed border-[#D7DDFF] bg-accentSoft px-4 py-5"
               style={({ pressed }) => ({
-                backgroundColor: pressed ? '#D7DDFF' : '#E8EBFF',
-                borderColor: '#C7D1FF',
-                borderWidth: 1,
                 transform: [{ translateY: pressed ? 1 : 0 }],
+                opacity: pressed ? 0.92 : 1,
               })}
             >
-              <Text className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7C8FFF]">
-                Create collection
-              </Text>
+              <View className="mb-2 h-10 w-10 items-center justify-center rounded-xl border border-[#D7DDFF] bg-white">
+                <Text className="text-xl font-bold text-accent">+</Text>
+              </View>
+              <Text className="text-lg font-semibold text-accent">Create collection</Text>
+              <Text className="mt-1 text-sm text-muted/80">Group lyrics or recordings.</Text>
             </Pressable>
           </View>
         ) : (

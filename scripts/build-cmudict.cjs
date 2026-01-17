@@ -125,10 +125,6 @@ const main = () => {
 
   fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
   fs.writeFileSync(OUTPUT_PATH, JSON.stringify(compact));
-
-  console.log(
-    `Built compact CMUdict with ${Object.keys(compact.wordToRhymeKey).length} words and ${Object.keys(compact.rhymeKeyToWords).length} rhyme keys.`,
-  );
 };
 
 main();

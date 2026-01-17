@@ -10,7 +10,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import '../global.css';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { supabase } from '../lib/supabaseClient';
 import { useAuthStore } from '../store/useAuthStore';
 import { useRefrainStore } from '../store/useRefrainStore';
 
@@ -18,10 +17,11 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const router = useRouter();
   const pathname = usePathname();
-  const { session, status, restoreSession } = useAuthStore((state) => ({
+  const { session, status, restoreSession, handleOAuthCallback } = useAuthStore((state) => ({
     session: state.session,
     status: state.status,
     restoreSession: state.restoreSession,
+    handleOAuthCallback: state.handleOAuthCallback,
   }));
   const resetLibrary = useRefrainStore((state) => state.reset);
 
@@ -30,14 +30,7 @@ export default function RootLayout() {
       if (!url) {
         return;
       }
-      const hasAuthParams = url.includes('code=') && url.includes('code_verifier=');
-      if (!hasAuthParams) {
-        return;
-      }
-      const { error } = await supabase.auth.exchangeCodeForSession(url);
-      if (error) {
-        console.warn('Supabase auth redirect failed', error.message);
-      }
+      await handleOAuthCallback(url);
     };
 
     const subscription = Linking.addEventListener('url', (event) => {
@@ -47,7 +40,7 @@ export default function RootLayout() {
     void Linking.getInitialURL().then((url) => handleDeepLink(url));
 
     return () => subscription.remove();
-  }, []);
+  }, [handleOAuthCallback]);
 
   useEffect(() => {
     void restoreSession();
@@ -60,13 +53,11 @@ export default function RootLayout() {
     }
     const onLoginRoute = pathname.startsWith('/login');
     if (!session && !onLoginRoute) {
-      console.info('[auth] redirecting to /login (no active session)');
       resetLibrary();
       router.replace('/login');
       return;
     }
     if (session && onLoginRoute) {
-      console.info('[auth] session detected, redirecting to /library');
       router.replace('/library');
     }
   }, [pathname, resetLibrary, router, session, status]);

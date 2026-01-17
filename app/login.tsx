@@ -17,12 +17,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../store/useAuthStore';
 
 export default function LoginScreen() {
-  const { signInWithPassword, signUp, signInWithOAuth, status, error } = useAuthStore((state) => ({
+  const { signInWithPassword, signUp, signInWithOAuth, status, error, clearError } = useAuthStore((state) => ({
     signInWithPassword: state.signInWithPassword,
     signUp: state.signUp,
     signInWithOAuth: state.signInWithOAuth,
     status: state.status,
     error: state.error,
+    clearError: state.clearError,
   }));
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -41,6 +42,7 @@ export default function LoginScreen() {
 
   const handleAuth = async () => {
     setMessage(null);
+    clearError();
     if (isSignUp && password !== confirmPassword) {
       setMessage('Passwords do not match.');
       return;
@@ -64,6 +66,7 @@ export default function LoginScreen() {
 
   const handleOAuth = async (provider: 'google' | 'apple') => {
     setMessage(null);
+    clearError();
     try {
       await signInWithOAuth(provider);
     } catch (err) {
@@ -249,6 +252,7 @@ export default function LoginScreen() {
                     setMode(isSignUp ? 'sign-in' : 'sign-up');
                     setMessage(null);
                     setConfirmPassword('');
+                    clearError();
                   }}
                   className="self-center px-3 py-2"
                   style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}

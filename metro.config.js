@@ -6,15 +6,12 @@ const { withNativeWind } = require('nativewind/metro');
 const config = getDefaultConfig(__dirname);
 config.resolver.assetExts.push('cjs');
 
-const safeAreaShim = path.resolve(__dirname, 'metro', 'SafeAreaViewShim.js');
+const nanoidShim = path.resolve(__dirname, 'metro', 'nanoidNonSecureShim.js');
 const originalResolveRequest = config.resolver.resolveRequest;
 
 config.resolver.resolveRequest = (context, moduleName, platform) => {
-  if (
-    moduleName === 'react-native/Libraries/Components/SafeAreaView/SafeAreaView' ||
-    moduleName === 'react-native/src/private/specs_DEPRECATED/components/RCTSafeAreaViewNativeComponent'
-  ) {
-    return { type: 'sourceFile', filePath: safeAreaShim };
+  if (moduleName === 'nanoid/non-secure') {
+    return { type: 'sourceFile', filePath: nanoidShim };
   }
 
   if (typeof originalResolveRequest === 'function') {
