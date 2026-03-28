@@ -39,8 +39,31 @@ yarn-error.*
 
 app-example
 
-# generated native folders
-/ios
-/android
+# iOS Swift
+ios/Refrain.xcodeproj/xcuserdata/
+ios/Refrain.xcodeproj/project.xcworkspace/xcuserdata/
+ios/*.xcuserstate
+ios/DerivedData/
+ios/build/
+ios/Pods/
+ios/Podfile.lock
+*.ipa
+*.dSYM.zip
+*.dSYM
 
-AGENT_RULES.md 
+# Xcode
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.moved-aside
+DerivedData/
+*.xccheckout
+*.xcscmblueprint
+
+AGENT_RULES.md

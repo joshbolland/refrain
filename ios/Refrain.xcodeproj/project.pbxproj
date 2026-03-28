@@ -1,0 +1,684 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		000000000000000000000001 /* RefrainApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000001 /* RefrainApp.swift */; };
+		000000000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000002 /* ContentView.swift */; };
+		000000000000000000000003 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000003 /* MainTabView.swift */; };
+		000000000000000000000004 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000004 /* AppState.swift */; };
+		000000000000000000000005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000005 /* Assets.xcassets */; };
+		000000000000000000000006 /* LyricFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000006 /* LyricFile.swift */; };
+		000000000000000000000007 /* Recording.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000007 /* Recording.swift */; };
+		000000000000000000000008 /* Collection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000008 /* Collection.swift */; };
+		000000000000000000000009 /* LibraryItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000009 /* LibraryItem.swift */; };
+		00000000000000000000000A /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000A /* User.swift */; };
+		00000000000000000000000B /* SupabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000B /* SupabaseService.swift */; };
+		00000000000000000000000C /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000C /* AuthService.swift */; };
+		00000000000000000000000D /* LyricRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000D /* LyricRepository.swift */; };
+		00000000000000000000000E /* RecordingRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000E /* RecordingRepository.swift */; };
+		00000000000000000000000F /* CollectionRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000F /* CollectionRepository.swift */; };
+		000000000000000000000010 /* SectionAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000010 /* SectionAnalyzer.swift */; };
+		000000000000000000000011 /* SyllableCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000011 /* SyllableCounter.swift */; };
+		000000000000000000000012 /* LineParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000012 /* LineParser.swift */; };
+		000000000000000000000013 /* RhymeAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000013 /* RhymeAnalyzer.swift */; };
+		000000000000000000000014 /* RhymeDictionary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000014 /* RhymeDictionary.swift */; };
+		000000000000000000000015 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000015 /* Theme.swift */; };
+		000000000000000000000016 /* SectionBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000016 /* SectionBadge.swift */; };
+		000000000000000000000017 /* SearchBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000017 /* SearchBar.swift */; };
+		000000000000000000000018 /* SaveStatusIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000018 /* SaveStatusIndicator.swift */; };
+		000000000000000000000019 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000019 /* LoginView.swift */; };
+		00000000000000000000001B /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001B /* LibraryView.swift */; };
+		00000000000000000000001C /* LibraryFilterSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001C /* LibraryFilterSheet.swift */; };
+		00000000000000000000001D /* LyricEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001D /* LyricEditorView.swift */; };
+		00000000000000000000001E /* EditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001E /* EditorViewModel.swift */; };
+		00000000000000000000001F /* LyricTextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001F /* LyricTextEditor.swift */; };
+		000000000000000000000020 /* SectionPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000020 /* SectionPickerSheet.swift */; };
+		000000000000000000000021 /* RhymePanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000021 /* RhymePanelView.swift */; };
+		000000000000000000000022 /* RecordingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000022 /* RecordingView.swift */; };
+		000000000000000000000023 /* RecordingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000023 /* RecordingViewModel.swift */; };
+		000000000000000000000024 /* PlaybackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000024 /* PlaybackView.swift */; };
+		000000000000000000000025 /* CollectionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000025 /* CollectionsView.swift */; };
+		000000000000000000000026 /* CollectionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000026 /* CollectionDetailView.swift */; };
+		000000000000000000000027 /* NewCollectionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000027 /* NewCollectionSheet.swift */; };
+		000000000000000000000028 /* CollectionsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000028 /* CollectionsSheet.swift */; };
+		000000000000000000000029 /* AuthStyles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000002A /* AuthStyles.swift */; };
+		00000000000000000000002A /* WebAuthenticationSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000002B /* WebAuthenticationSession.swift */; };
+		00000000000000000000002B /* UserAvatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000002C /* UserAvatar.swift */; };
+		00000000000000000000002C /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000002D /* ProfileView.swift */; };
+		10000000000000000000002E /* InlineSectionChipsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000002F /* InlineSectionChipsView.swift */; };
+		100000000000000000000030 /* KeyboardObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000031 /* KeyboardObserver.swift */; };
+		381A84102F78879B00ED3591 /* PreviewSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 381A840F2F78879B00ED3591 /* PreviewSupport.swift */; };
+		387CE44A2F1C0EAA00CBA664 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 600000000000000000000001 /* Supabase */; };
+		387CE44C2F1C102B00CBA664 /* cmudict.compact.json in Resources */ = {isa = PBXBuildFile; fileRef = 387CE44B2F1C102B00CBA664 /* cmudict.compact.json */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		100000000000000000000000 /* Refrain.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Refrain.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		100000000000000000000001 /* RefrainApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefrainApp.swift; sourceTree = "<group>"; };
+		100000000000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		100000000000000000000003 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		100000000000000000000004 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		100000000000000000000005 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		100000000000000000000006 /* LyricFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricFile.swift; sourceTree = "<group>"; };
+		100000000000000000000007 /* Recording.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Recording.swift; sourceTree = "<group>"; };
+		100000000000000000000008 /* Collection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Collection.swift; sourceTree = "<group>"; };
+		100000000000000000000009 /* LibraryItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryItem.swift; sourceTree = "<group>"; };
+		10000000000000000000000A /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
+		10000000000000000000000B /* SupabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseService.swift; sourceTree = "<group>"; };
+		10000000000000000000000C /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
+		10000000000000000000000D /* LyricRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricRepository.swift; sourceTree = "<group>"; };
+		10000000000000000000000E /* RecordingRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingRepository.swift; sourceTree = "<group>"; };
+		10000000000000000000000F /* CollectionRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionRepository.swift; sourceTree = "<group>"; };
+		100000000000000000000010 /* SectionAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionAnalyzer.swift; sourceTree = "<group>"; };
+		100000000000000000000011 /* SyllableCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyllableCounter.swift; sourceTree = "<group>"; };
+		100000000000000000000012 /* LineParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineParser.swift; sourceTree = "<group>"; };
+		100000000000000000000013 /* RhymeAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RhymeAnalyzer.swift; sourceTree = "<group>"; };
+		100000000000000000000014 /* RhymeDictionary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RhymeDictionary.swift; sourceTree = "<group>"; };
+		100000000000000000000015 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		100000000000000000000016 /* SectionBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionBadge.swift; sourceTree = "<group>"; };
+		100000000000000000000017 /* SearchBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchBar.swift; sourceTree = "<group>"; };
+		100000000000000000000018 /* SaveStatusIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveStatusIndicator.swift; sourceTree = "<group>"; };
+		100000000000000000000019 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		10000000000000000000001B /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		10000000000000000000001C /* LibraryFilterSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryFilterSheet.swift; sourceTree = "<group>"; };
+		10000000000000000000001D /* LyricEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricEditorView.swift; sourceTree = "<group>"; };
+		10000000000000000000001E /* EditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorViewModel.swift; sourceTree = "<group>"; };
+		10000000000000000000001F /* LyricTextEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricTextEditor.swift; sourceTree = "<group>"; };
+		100000000000000000000020 /* SectionPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionPickerSheet.swift; sourceTree = "<group>"; };
+		100000000000000000000021 /* RhymePanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RhymePanelView.swift; sourceTree = "<group>"; };
+		100000000000000000000022 /* RecordingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingView.swift; sourceTree = "<group>"; };
+		100000000000000000000023 /* RecordingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingViewModel.swift; sourceTree = "<group>"; };
+		100000000000000000000024 /* PlaybackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackView.swift; sourceTree = "<group>"; };
+		100000000000000000000025 /* CollectionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionsView.swift; sourceTree = "<group>"; };
+		100000000000000000000026 /* CollectionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionDetailView.swift; sourceTree = "<group>"; };
+		100000000000000000000027 /* NewCollectionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewCollectionSheet.swift; sourceTree = "<group>"; };
+		100000000000000000000028 /* CollectionsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionsSheet.swift; sourceTree = "<group>"; };
+		100000000000000000000029 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		10000000000000000000002A /* AuthStyles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthStyles.swift; sourceTree = "<group>"; };
+		10000000000000000000002B /* WebAuthenticationSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAuthenticationSession.swift; sourceTree = "<group>"; };
+		10000000000000000000002C /* UserAvatar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserAvatar.swift; sourceTree = "<group>"; };
+		10000000000000000000002D /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		10000000000000000000002F /* InlineSectionChipsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineSectionChipsView.swift; sourceTree = "<group>"; };
+		100000000000000000000031 /* KeyboardObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardObserver.swift; sourceTree = "<group>"; };
+		381A840F2F78879B00ED3591 /* PreviewSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewSupport.swift; sourceTree = "<group>"; };
+		387CE44B2F1C102B00CBA664 /* cmudict.compact.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = cmudict.compact.json; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		200000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				387CE44A2F1C0EAA00CBA664 /* Supabase in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		300000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				300000000000000000000002 /* Refrain */,
+				300000000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		300000000000000000000002 /* Refrain */ = {
+			isa = PBXGroup;
+			children = (
+				300000000000000000000004 /* App */,
+				300000000000000000000005 /* Features */,
+				300000000000000000000006 /* Core */,
+				300000000000000000000007 /* UI */,
+				300000000000000000000008 /* Resources */,
+			);
+			path = Refrain;
+			sourceTree = "<group>";
+		};
+		300000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000000 /* Refrain.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		300000000000000000000004 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000001 /* RefrainApp.swift */,
+				100000000000000000000002 /* ContentView.swift */,
+				100000000000000000000003 /* MainTabView.swift */,
+				100000000000000000000004 /* AppState.swift */,
+				381A840F2F78879B00ED3591 /* PreviewSupport.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		300000000000000000000005 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				300000000000000000000009 /* Auth */,
+				30000000000000000000000A /* Library */,
+				30000000000000000000000B /* Editor */,
+				30000000000000000000000C /* Recording */,
+				30000000000000000000000D /* Collections */,
+				300000000000000000000013 /* Profile */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		300000000000000000000006 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				30000000000000000000000E /* Models */,
+				30000000000000000000000F /* Services */,
+				300000000000000000000010 /* Analysis */,
+				300000000000000000000014 /* Utilities */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		300000000000000000000007 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				300000000000000000000011 /* Theme */,
+				300000000000000000000012 /* Components */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		300000000000000000000008 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				387CE44B2F1C102B00CBA664 /* cmudict.compact.json */,
+				100000000000000000000005 /* Assets.xcassets */,
+				100000000000000000000029 /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		300000000000000000000009 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000019 /* LoginView.swift */,
+				10000000000000000000002A /* AuthStyles.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		30000000000000000000000A /* Library */ = {
+			isa = PBXGroup;
+			children = (
+				10000000000000000000001B /* LibraryView.swift */,
+				10000000000000000000001C /* LibraryFilterSheet.swift */,
+			);
+			path = Library;
+			sourceTree = "<group>";
+		};
+		30000000000000000000000B /* Editor */ = {
+			isa = PBXGroup;
+			children = (
+				10000000000000000000001D /* LyricEditorView.swift */,
+				10000000000000000000001E /* EditorViewModel.swift */,
+				10000000000000000000001F /* LyricTextEditor.swift */,
+				100000000000000000000020 /* SectionPickerSheet.swift */,
+				100000000000000000000021 /* RhymePanelView.swift */,
+				10000000000000000000002F /* InlineSectionChipsView.swift */,
+			);
+			path = Editor;
+			sourceTree = "<group>";
+		};
+		30000000000000000000000C /* Recording */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000022 /* RecordingView.swift */,
+				100000000000000000000023 /* RecordingViewModel.swift */,
+				100000000000000000000024 /* PlaybackView.swift */,
+			);
+			path = Recording;
+			sourceTree = "<group>";
+		};
+		30000000000000000000000D /* Collections */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000025 /* CollectionsView.swift */,
+				100000000000000000000026 /* CollectionDetailView.swift */,
+				100000000000000000000027 /* NewCollectionSheet.swift */,
+				100000000000000000000028 /* CollectionsSheet.swift */,
+			);
+			path = Collections;
+			sourceTree = "<group>";
+		};
+		30000000000000000000000E /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000006 /* LyricFile.swift */,
+				100000000000000000000007 /* Recording.swift */,
+				100000000000000000000008 /* Collection.swift */,
+				100000000000000000000009 /* LibraryItem.swift */,
+				10000000000000000000000A /* User.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		30000000000000000000000F /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				10000000000000000000000B /* SupabaseService.swift */,
+				10000000000000000000000C /* AuthService.swift */,
+				10000000000000000000000D /* LyricRepository.swift */,
+				10000000000000000000000E /* RecordingRepository.swift */,
+				10000000000000000000000F /* CollectionRepository.swift */,
+				10000000000000000000002B /* WebAuthenticationSession.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		300000000000000000000010 /* Analysis */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000010 /* SectionAnalyzer.swift */,
+				100000000000000000000011 /* SyllableCounter.swift */,
+				100000000000000000000012 /* LineParser.swift */,
+				100000000000000000000013 /* RhymeAnalyzer.swift */,
+				100000000000000000000014 /* RhymeDictionary.swift */,
+			);
+			path = Analysis;
+			sourceTree = "<group>";
+		};
+		300000000000000000000011 /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000015 /* Theme.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		300000000000000000000012 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000016 /* SectionBadge.swift */,
+				100000000000000000000017 /* SearchBar.swift */,
+				100000000000000000000018 /* SaveStatusIndicator.swift */,
+				10000000000000000000002C /* UserAvatar.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		300000000000000000000013 /* Profile */ = {
+			isa = PBXGroup;
+			children = (
+				10000000000000000000002D /* ProfileView.swift */,
+			);
+			path = Profile;
+			sourceTree = "<group>";
+		};
+		300000000000000000000014 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000031 /* KeyboardObserver.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		400000000000000000000001 /* Refrain */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 500000000000000000000001 /* Build configuration list for PBXNativeTarget "Refrain" */;
+			buildPhases = (
+				400000000000000000000002 /* Sources */,
+				200000000000000000000001 /* Frameworks */,
+				400000000000000000000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Refrain;
+			packageProductDependencies = (
+				600000000000000000000001 /* Supabase */,
+			);
+			productName = Refrain;
+			productReference = 100000000000000000000000 /* Refrain.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		700000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1640;
+				TargetAttributes = {
+					400000000000000000000001 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = 500000000000000000000002 /* Build configuration list for PBXProject "Refrain" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 300000000000000000000001;
+			packageReferences = (
+				800000000000000000000001 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
+			productRefGroup = 300000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				400000000000000000000001 /* Refrain */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		400000000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				387CE44C2F1C102B00CBA664 /* cmudict.compact.json in Resources */,
+				000000000000000000000005 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		400000000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				000000000000000000000001 /* RefrainApp.swift in Sources */,
+				000000000000000000000002 /* ContentView.swift in Sources */,
+				000000000000000000000003 /* MainTabView.swift in Sources */,
+				000000000000000000000004 /* AppState.swift in Sources */,
+				000000000000000000000006 /* LyricFile.swift in Sources */,
+				000000000000000000000007 /* Recording.swift in Sources */,
+				000000000000000000000008 /* Collection.swift in Sources */,
+				000000000000000000000009 /* LibraryItem.swift in Sources */,
+				00000000000000000000000A /* User.swift in Sources */,
+				00000000000000000000000B /* SupabaseService.swift in Sources */,
+				00000000000000000000000C /* AuthService.swift in Sources */,
+				00000000000000000000000D /* LyricRepository.swift in Sources */,
+				00000000000000000000000E /* RecordingRepository.swift in Sources */,
+				00000000000000000000000F /* CollectionRepository.swift in Sources */,
+				000000000000000000000010 /* SectionAnalyzer.swift in Sources */,
+				000000000000000000000011 /* SyllableCounter.swift in Sources */,
+				000000000000000000000012 /* LineParser.swift in Sources */,
+				000000000000000000000013 /* RhymeAnalyzer.swift in Sources */,
+				000000000000000000000014 /* RhymeDictionary.swift in Sources */,
+				000000000000000000000015 /* Theme.swift in Sources */,
+				000000000000000000000016 /* SectionBadge.swift in Sources */,
+				000000000000000000000017 /* SearchBar.swift in Sources */,
+				000000000000000000000018 /* SaveStatusIndicator.swift in Sources */,
+				000000000000000000000019 /* LoginView.swift in Sources */,
+				00000000000000000000001B /* LibraryView.swift in Sources */,
+				00000000000000000000001C /* LibraryFilterSheet.swift in Sources */,
+				00000000000000000000001D /* LyricEditorView.swift in Sources */,
+				00000000000000000000001E /* EditorViewModel.swift in Sources */,
+				381A84102F78879B00ED3591 /* PreviewSupport.swift in Sources */,
+				00000000000000000000001F /* LyricTextEditor.swift in Sources */,
+				000000000000000000000020 /* SectionPickerSheet.swift in Sources */,
+				000000000000000000000021 /* RhymePanelView.swift in Sources */,
+				000000000000000000000022 /* RecordingView.swift in Sources */,
+				000000000000000000000023 /* RecordingViewModel.swift in Sources */,
+				000000000000000000000024 /* PlaybackView.swift in Sources */,
+				000000000000000000000025 /* CollectionsView.swift in Sources */,
+				000000000000000000000026 /* CollectionDetailView.swift in Sources */,
+				000000000000000000000027 /* NewCollectionSheet.swift in Sources */,
+				000000000000000000000028 /* CollectionsSheet.swift in Sources */,
+				000000000000000000000029 /* AuthStyles.swift in Sources */,
+				00000000000000000000002A /* WebAuthenticationSession.swift in Sources */,
+				00000000000000000000002B /* UserAvatar.swift in Sources */,
+				00000000000000000000002C /* ProfileView.swift in Sources */,
+				10000000000000000000002E /* InlineSectionChipsView.swift in Sources */,
+				100000000000000000000030 /* KeyboardObserver.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		900000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 5Y8SL38ULP;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		900000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 5Y8SL38ULP;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		900000000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Refrain/Resources/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Refrain;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Refrain needs access to your microphone to record audio ideas for your lyrics.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.refrain.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		900000000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Refrain/Resources/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Refrain;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Refrain needs access to your microphone to record audio ideas for your lyrics.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.refrain.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		500000000000000000000001 /* Build configuration list for PBXNativeTarget "Refrain" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				900000000000000000000003 /* Debug */,
+				900000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		500000000000000000000002 /* Build configuration list for PBXProject "Refrain" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				900000000000000000000001 /* Debug */,
+				900000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		800000000000000000000001 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		600000000000000000000001 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 800000000000000000000001 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 700000000000000000000001 /* Project object */;
+}

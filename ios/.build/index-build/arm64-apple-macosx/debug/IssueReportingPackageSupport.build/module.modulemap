@@ -1,0 +1,4 @@
+module IssueReportingPackageSupport {
+    header "/Users/joshbolland/Documents/code/refrain/ios/.build/index-build/arm64-apple-macosx/debug/IssueReportingPackageSupport.build/IssueReportingPackageSupport-Swift.h"
+    requires objc
+}

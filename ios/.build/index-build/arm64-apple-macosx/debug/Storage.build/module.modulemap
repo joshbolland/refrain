@@ -1,0 +1,4 @@
+module Storage {
+    header "/Users/joshbolland/Documents/code/refrain/ios/.build/index-build/arm64-apple-macosx/debug/Storage.build/Storage-Swift.h"
+    requires objc
+}

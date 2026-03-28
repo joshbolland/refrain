@@ -1,0 +1,4 @@
+module Auth {
+    header "/Users/joshbolland/Documents/code/refrain/ios/.build/index-build/arm64-apple-macosx/debug/Auth.build/Auth-Swift.h"
+    requires objc
+}

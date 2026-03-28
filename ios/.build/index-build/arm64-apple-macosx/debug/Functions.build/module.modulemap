@@ -1,0 +1,4 @@
+module Functions {
+    header "/Users/joshbolland/Documents/code/refrain/ios/.build/index-build/arm64-apple-macosx/debug/Functions.build/Functions-Swift.h"
+    requires objc
+}

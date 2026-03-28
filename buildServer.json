@@ -1,0 +1,8 @@
+{
+  "name": "xcodebuild",
+  "project": "ios/Refrain.xcodeproj",
+  "scheme": "Refrain",
+  "configuration": "Debug",
+  "sdk": "iphonesimulator",
+  "destination": "generic/platform=iOS Simulator"
+}
