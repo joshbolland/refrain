@@ -48,6 +48,7 @@ final class RecordingViewModel {
     private var pausedDuration: TimeInterval = 0
 
     private let maxLevels = 48
+    private let recordingStorageService = RecordingStorageService.shared
 
     // MARK: - Initialization
 
@@ -168,25 +169,38 @@ final class RecordingViewModel {
         stopTimers()
 
         guard let url = recordingURL else { return nil }
+        guard let userId = await AuthService.shared.getCurrentUserId() else { return nil }
 
+        let recordingId = UUID().uuidString
         let title = "Recording \(formattedDate())"
-        let recording = await appState.createRecording(
-            title: title,
-            uri: url.absoluteString,
-            durationMs: durationMs
-        )
+        do {
+            let storagePath = try await recordingStorageService.uploadRecording(
+                from: url,
+                recordingId: recordingId,
+                userId: userId
+            )
 
-        // Reset state
-        audioRecorder = nil
-        recordingURL = nil
-        isRecording = false
-        isPaused = false
-        hasRecording = false
-        durationMs = 0
-        pausedDuration = 0
-        audioLevels = Array(repeating: 0, count: maxLevels)
+            let recording = await appState.createRecording(
+                id: recordingId,
+                title: title,
+                uri: storagePath,
+                durationMs: durationMs
+            )
 
-        return recording
+            audioRecorder = nil
+            recordingURL = nil
+            isRecording = false
+            isPaused = false
+            hasRecording = false
+            durationMs = 0
+            pausedDuration = 0
+            audioLevels = Array(repeating: 0, count: maxLevels)
+
+            return recording
+        } catch {
+            print("Failed to upload recording: \(error)")
+            return nil
+        }
     }
 
     // MARK: - Timer Management

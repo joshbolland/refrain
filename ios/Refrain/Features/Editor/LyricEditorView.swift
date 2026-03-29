@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct LyricEditorView: View {
     @Environment(AppState.self) private var appState
@@ -10,6 +11,8 @@ struct LyricEditorView: View {
     @State private var viewModel: EditorViewModel
     @State private var showRhymeSuggestions = true
     @State private var collectionSheetItem: LibraryItem?
+    @State private var shareSheetURL: URL?
+    @State private var shareErrorMessage: String?
     @State private var previousTabBarHidden = false
     @FocusState private var isTitleFocused: Bool
 
@@ -57,6 +60,18 @@ struct LyricEditorView: View {
         .toolbar(.hidden, for: .navigationBar)
         .sheet(item: $collectionSheetItem) { item in
             CollectionsSheet(item: item)
+        }
+        .sheet(isPresented: shareSheetIsPresented, onDismiss: {
+            shareSheetURL = nil
+        }) {
+            if let shareSheetURL {
+                ActivityViewController(activityItems: [shareSheetURL])
+            }
+        }
+        .alert("Unable to Share", isPresented: shareErrorIsPresented) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(shareErrorMessage ?? "Please try again.")
         }
         .task {
             viewModel.appState = appState
@@ -109,7 +124,7 @@ struct LyricEditorView: View {
                     }
 
                     Button {
-                        // TODO: Share
+                        shareCurrentLyric()
                     } label: {
                         Label("Share", systemImage: "square.and.arrow.up")
                     }
@@ -181,6 +196,80 @@ struct LyricEditorView: View {
         }
         .buttonStyle(PressableScaleStyle())
     }
+
+    private var shareErrorIsPresented: Binding<Bool> {
+        Binding(
+            get: { shareErrorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    shareErrorMessage = nil
+                }
+            }
+        )
+    }
+
+    private var shareSheetIsPresented: Binding<Bool> {
+        Binding(
+            get: { shareSheetURL != nil },
+            set: { isPresented in
+                if !isPresented {
+                    shareSheetURL = nil
+                }
+            }
+        )
+    }
+
+    private func shareCurrentLyric() {
+        let exportedText = exportedLyricText()
+
+        do {
+            shareSheetURL = try writeExportFile(contents: exportedText)
+        } catch {
+            shareErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func exportedLyricText() -> String {
+        let trimmedTitle = viewModel.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let title = trimmedTitle.isEmpty ? "Untitled" : trimmedTitle
+        let trimmedBody = viewModel.body.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedBody.isEmpty else {
+            return title
+        }
+
+        return "\(title)\n\n\(trimmedBody)"
+    }
+
+    private func writeExportFile(contents: String) throws -> URL {
+        let directory = FileManager.default.temporaryDirectory
+        let filename = sanitizedFilename(from: viewModel.title)
+        let url = directory.appendingPathComponent(filename).appendingPathExtension("txt")
+
+        try contents.write(to: url, atomically: true, encoding: .utf8)
+        return url
+    }
+
+    private func sanitizedFilename(from title: String) -> String {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fallbackTitle = trimmed.isEmpty ? "Untitled" : trimmed
+        let invalidCharacters = CharacterSet(charactersIn: "/\\?%*|\"<>:")
+        let cleanedScalars = fallbackTitle.unicodeScalars.map { scalar in
+            invalidCharacters.contains(scalar) ? "-" : Character(scalar)
+        }
+        let cleaned = String(cleanedScalars).trimmingCharacters(in: .whitespacesAndNewlines)
+        return cleaned.isEmpty ? "Untitled" : cleaned
+    }
+}
+
+private struct ActivityViewController: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 #Preview {

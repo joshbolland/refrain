@@ -22,8 +22,6 @@ struct LibraryView: View {
     }
 
     var body: some View {
-        @Bindable var state = appState
-
         NavigationStack {
             GeometryReader { proxy in
                 ZStack(alignment: .top) {
@@ -35,7 +33,10 @@ struct LibraryView: View {
 
                         ScrollView {
                             VStack(spacing: 16) {
-                                SearchBar(text: $state.searchQuery, placeholder: "Search ideas")
+                                SearchBar(text: Binding(
+                                    get: { appState.searchQuery },
+                                    set: { appState.searchQuery = $0 }
+                                ), placeholder: "Search ideas")
 
                                 if appState.filteredLibraryItems.isEmpty {
                                     emptyStateView
@@ -83,7 +84,7 @@ struct LibraryView: View {
                     PlaybackView(recording: recording)
                 }
             }
-            .onChange(of: state.searchQuery) {
+            .onChange(of: appState.searchQuery) {
                 swipeOpenItemId = nil
             }
         }
@@ -193,7 +194,7 @@ struct LibraryView: View {
                         Task { await deleteItem(item) }
                     }
                 ) {
-                    LibraryItemRow(item: item, showsPressFeedback: false) {
+                    LibraryItemRow(item: item, onSelect: {
                         if swipeOpenItemId == item.id {
                             withAnimation(.spring(response: 0.24, dampingFraction: 0.9)) {
                                 swipeOpenItemId = nil
@@ -201,7 +202,7 @@ struct LibraryView: View {
                             return
                         }
                         selectedItem = item
-                    }
+                    }, showsPressFeedback: false)
                 }
                 .contextMenu {
                     contextMenuContent(for: item)

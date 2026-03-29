@@ -211,7 +211,14 @@ struct CollectionCard: View {
     }
 }
 
-#Preview {
+#Preview("Collections Populated") {
     CollectionsView()
-        .environment(AppState())
+        .environment(AppState.preview())
+        .environment(\.isPreview, true)
+}
+
+#Preview("Collections Empty") {
+    CollectionsView()
+        .environment(AppState.preview(populated: false))
+        .environment(\.isPreview, true)
 }

@@ -45,6 +45,7 @@ final class AppState {
     private let lyricRepository = LyricRepository()
     private let recordingRepository = RecordingRepository()
     private let collectionRepository = CollectionRepository()
+    private let recordingStorageService = RecordingStorageService.shared
 
     // MARK: - Initialization
 
@@ -257,9 +258,14 @@ final class AppState {
 
     // MARK: - Recording Operations
 
-    func createRecording(title: String, uri: String, durationMs: Int) async -> Recording? {
+    func createRecording(
+        id: String = UUID().uuidString,
+        title: String,
+        uri: String,
+        durationMs: Int
+    ) async -> Recording? {
         let recording = Recording(
-            id: UUID().uuidString,
+            id: id,
             title: title,
             createdAt: Date(),
             updatedAt: Date(),
@@ -297,6 +303,14 @@ final class AppState {
     }
 
     func deleteRecording(_ recording: Recording) async {
+        if recordingStorageService.isRemoteStoragePath(recording.uri) {
+            do {
+                try await recordingStorageService.deleteRecording(at: recording.uri)
+            } catch {
+                print("Error deleting recording audio file: \(error)")
+            }
+        }
+
         do {
             try await recordingRepository.delete(recording.id)
             await MainActor.run {

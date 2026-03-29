@@ -110,6 +110,8 @@ struct PlaybackView: View {
                             .foregroundStyle(.white)
                     }
                 }
+                .disabled(!viewModel.isReady)
+                .opacity(viewModel.isReady ? 1 : 0.4)
 
                 // Skip forward
                 Button {
@@ -165,6 +167,9 @@ struct PlaybackView: View {
         .onAppear {
             appState.isTabBarHidden = true
         }
+        .task {
+            await viewModel.preparePlayback()
+        }
         .onChange(of: isEditing) { _, isEditing in
             isTitleFieldFocused = isEditing
         }
@@ -202,10 +207,12 @@ final class PlaybackViewModel: NSObject, AVAudioPlayerDelegate {
     var isPlaying = false
     var progress: Double = 0
     var currentTimeMs: Int = 0
+    var isReady = false
 
     private let recording: Recording
     private var audioPlayer: AVAudioPlayer?
     private var timer: Timer?
+    private let recordingStorageService = RecordingStorageService.shared
 
     var formattedCurrentTime: String {
         formatTime(ms: currentTimeMs)
@@ -219,16 +226,12 @@ final class PlaybackViewModel: NSObject, AVAudioPlayerDelegate {
     init(recording: Recording) {
         self.recording = recording
         super.init()
-        setupPlayer()
     }
 
-    private func setupPlayer() {
-        guard let url = resolvePlaybackURL(from: recording.uri) else {
-            print("Failed to setup player: invalid recording URL \(recording.uri)")
-            return
-        }
-
+    @MainActor
+    func preparePlayback() async {
         do {
+            let url = try await recordingStorageService.resolvePlaybackURL(for: recording.uri)
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playback, mode: .default)
             try session.setActive(true)
@@ -236,9 +239,11 @@ final class PlaybackViewModel: NSObject, AVAudioPlayerDelegate {
             audioPlayer = try AVAudioPlayer(contentsOf: url)
             audioPlayer?.delegate = self
             audioPlayer?.prepareToPlay()
+            isReady = true
             updateProgress()
         } catch {
             print("Failed to setup player: \(error)")
+            isReady = false
         }
     }
 
@@ -318,29 +323,6 @@ final class PlaybackViewModel: NSObject, AVAudioPlayerDelegate {
         }
     }
 
-    private func resolvePlaybackURL(from uri: String) -> URL? {
-        if let url = URL(string: uri), url.isFileURL {
-            if FileManager.default.fileExists(atPath: url.path) {
-                return url
-            }
-
-            let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            let candidate = documentsURL.appendingPathComponent(url.lastPathComponent)
-            if FileManager.default.fileExists(atPath: candidate.path) {
-                return candidate
-            }
-        }
-
-        if uri.hasPrefix("/") {
-            let fileURL = URL(fileURLWithPath: uri)
-            if FileManager.default.fileExists(atPath: fileURL.path) {
-                return fileURL
-            }
-        }
-
-        return URL(string: uri)
-    }
-
     private func resetPlaybackState(for player: AVAudioPlayer) {
         isPlaying = false
         stopTimer()
@@ -361,13 +343,10 @@ final class PlaybackViewModel: NSObject, AVAudioPlayerDelegate {
     }
 }
 
-#Preview {
+#Preview("Playback") {
     NavigationStack {
-        PlaybackView(recording: Recording(
-            title: "Test Recording",
-            durationMs: 180000,
-            uri: ""
-        ))
+        PlaybackView(recording: AppState.previewRecording())
     }
-    .environment(AppState())
+    .environment(AppState.preview())
+    .environment(\.isPreview, true)
 }

@@ -104,7 +104,8 @@ struct NewCollectionSheet: View {
     }
 }
 
-#Preview {
+#Preview("New Collection Sheet") {
     NewCollectionSheet()
-        .environment(AppState())
+        .environment(AppState.preview())
+        .environment(\.isPreview, true)
 }

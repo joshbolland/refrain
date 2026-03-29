@@ -128,7 +128,14 @@ struct CollectionToggleRow: View {
     }
 }
 
-#Preview {
-    CollectionsSheet(item: .lyric(LyricFile(title: "Test Song")))
-        .environment(AppState())
+#Preview("Collections Sheet Populated") {
+    CollectionsSheet(item: .lyric(AppState.previewLyric()))
+        .environment(AppState.preview())
+        .environment(\.isPreview, true)
+}
+
+#Preview("Collections Sheet Empty") {
+    CollectionsSheet(item: .recording(Recording(title: "Voice memo idea")))
+        .environment(AppState.preview(populated: false))
+        .environment(\.isPreview, true)
 }

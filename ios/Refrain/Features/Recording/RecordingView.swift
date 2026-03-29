@@ -150,7 +150,8 @@ struct WaveformView: View {
     }
 }
 
-#Preview {
+#Preview("Recording") {
     RecordingView()
-        .environment(AppState())
+        .environment(AppState.preview())
+        .environment(\.isPreview, true)
 }

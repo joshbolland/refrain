@@ -13,6 +13,10 @@ struct MainTabView: View {
     @State private var newLyric: LyricFile?
     @State private var showRecording = false
 
+    init(selectedTab: MainTab = .library) {
+        _selectedTab = State(initialValue: selectedTab)
+    }
+
     var body: some View {
         TabView(selection: $selectedTab) {
             LibraryView()
@@ -230,8 +234,7 @@ struct CreateActionCard: View {
 }
 
 #Preview("Collections Tab") {
-    var state = AppState.preview()
-    return MainTabView()
-        .environment(state)
+    MainTabView(selectedTab: .collections)
+        .environment(AppState.preview())
         .environment(\.isPreview, true)
 }

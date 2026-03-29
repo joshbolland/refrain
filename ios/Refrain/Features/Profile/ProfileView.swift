@@ -281,7 +281,8 @@ struct ProfileRowButtonStyle: ButtonStyle {
     }
 }
 
-#Preview {
+#Preview("Profile") {
     ProfileView()
-        .environment(AppState())
+        .environment(AppState.preview())
+        .environment(\.isPreview, true)
 }

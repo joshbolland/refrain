@@ -7,6 +7,56 @@ extension AppState {
         state.isLoading = false
 
         if loggedIn {
+            let favoritesCollection = Collection(
+                id: "collection-favorites",
+                title: "Favorites",
+                description: "Best ideas worth keeping close"
+            )
+            let albumDraftsCollection = Collection(
+                id: "collection-album-drafts",
+                title: "Album Drafts",
+                description: "Work in progress for the next release"
+            )
+
+            let firstSong = LyricFile(
+                id: "lyric-1",
+                title: "First Song",
+                body: "First verse line\nSecond line\n\nChorus begins",
+                createdAt: Date().addingTimeInterval(-86400 * 4),
+                updatedAt: Date().addingTimeInterval(-3600),
+                sectionTypes: [
+                    0: .verse,
+                    3: .chorus
+                ]
+            )
+            let midnightDrive = LyricFile(
+                id: "lyric-2",
+                title: "Midnight Drive",
+                body: "Rolling past the city lights\nFading into night",
+                createdAt: Date().addingTimeInterval(-86400 * 7),
+                updatedAt: Date().addingTimeInterval(-7200),
+                sectionTypes: [
+                    0: .verse
+                ]
+            )
+
+            let chorusIdea = Recording(
+                id: "rec-1",
+                title: "Chorus idea",
+                createdAt: Date().addingTimeInterval(-86400 * 2),
+                updatedAt: Date().addingTimeInterval(-1800),
+                durationMs: 42_000,
+                uri: "file:///tmp/chorus.m4a"
+            )
+            let verseRiff = Recording(
+                id: "rec-2",
+                title: "Verse riff",
+                createdAt: Date().addingTimeInterval(-86400 * 1),
+                updatedAt: Date().addingTimeInterval(-1600),
+                durationMs: 21_000,
+                uri: "file:///tmp/verse.m4a"
+            )
+
             state.currentUser = User(
                 id: "preview-user",
                 email: "demo@refrain.app",
@@ -16,49 +66,37 @@ extension AppState {
             )
 
             if populated {
-                let now = Date()
-
                 state.lyricFiles = [
-                    LyricFile(
-                        id: "lyric-1",
-                        title: "First Song",
-                        body: "First verse line\nSecond line\n\nChorus begins",
-                        createdAt: now.addingTimeInterval(-86400 * 4),
-                        updatedAt: now.addingTimeInterval(-3600),
-                        sectionTypes: [:]
-                    ),
-                    LyricFile(
-                        id: "lyric-2",
-                        title: "Midnight Drive",
-                        body: "Rolling past the city lights\nFading into night",
-                        createdAt: now.addingTimeInterval(-86400 * 7),
-                        updatedAt: now.addingTimeInterval(-7200),
-                        sectionTypes: [:]
-                    )
+                    firstSong,
+                    midnightDrive
                 ]
 
                 state.recordings = [
-                    Recording(
-                        id: "rec-1",
-                        title: "Chorus idea",
-                        createdAt: now.addingTimeInterval(-86400 * 2),
-                        updatedAt: now.addingTimeInterval(-1800),
-                        durationMs: 42_000,
-                        uri: "file:///tmp/chorus.m4a"
-                    ),
-                    Recording(
-                        id: "rec-2",
-                        title: "Verse riff",
-                        createdAt: now.addingTimeInterval(-86400 * 1),
-                        updatedAt: now.addingTimeInterval(-1600),
-                        durationMs: 21_000,
-                        uri: "file:///tmp/verse.m4a"
-                    )
+                    chorusIdea,
+                    verseRiff
                 ]
 
                 state.collections = [
-                    Collection(title: "Favorites"),
-                    Collection(title: "Album Drafts")
+                    favoritesCollection,
+                    albumDraftsCollection
+                ]
+
+                state.collectionAssignments = [
+                    CollectionAssignment(
+                        collectionId: favoritesCollection.id,
+                        itemId: firstSong.id,
+                        itemType: .lyric
+                    ),
+                    CollectionAssignment(
+                        collectionId: favoritesCollection.id,
+                        itemId: chorusIdea.id,
+                        itemType: .recording
+                    ),
+                    CollectionAssignment(
+                        collectionId: albumDraftsCollection.id,
+                        itemId: midnightDrive.id,
+                        itemType: .lyric
+                    )
                 ]
             }
         } else {
@@ -66,6 +104,18 @@ extension AppState {
         }
 
         return state
+    }
+
+    static func previewCollection(id: String = "collection-favorites") -> Collection {
+        preview().collections.first(where: { $0.id == id }) ?? Collection(id: id)
+    }
+
+    static func previewLyric(id: String = "lyric-1") -> LyricFile {
+        preview().lyricFiles.first(where: { $0.id == id }) ?? LyricFile(id: id)
+    }
+
+    static func previewRecording(id: String = "rec-1") -> Recording {
+        preview().recordings.first(where: { $0.id == id }) ?? Recording(id: id)
     }
 }
 

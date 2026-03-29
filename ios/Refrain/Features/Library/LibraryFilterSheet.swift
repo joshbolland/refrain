@@ -116,7 +116,18 @@ private struct SheetHeightKey: PreferenceKey {
     }
 }
 
-#Preview {
+#Preview("Library Filters Default") {
     LibraryFilterSheet()
-        .environment(AppState())
+        .environment(AppState.preview())
+        .environment(\.isPreview, true)
+}
+
+#Preview("Library Filters Active") {
+    let state = AppState.preview()
+    state.selectedItemTypeFilter = .recordings
+    state.selectedCollectionFilter = AppState.previewCollection().id
+
+    return LibraryFilterSheet()
+        .environment(state)
+        .environment(\.isPreview, true)
 }

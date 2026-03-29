@@ -214,10 +214,26 @@ private struct InteractivePopGestureEnabler: UIViewControllerRepresentable {
     }
 }
 
-#Preview {
+#Preview("Collection Detail Populated") {
     NavigationStack {
-        CollectionDetailView(collection: Collection(title: "My Songs"))
+        CollectionDetailView(collection: AppState.previewCollection())
     }
     .environment(AppState.preview())
+    .environment(\.isPreview, true)
+}
+
+#Preview("Collection Detail Empty") {
+    let state = AppState.preview()
+    let emptyCollection = Collection(
+        id: "collection-empty",
+        title: "Voice Notes",
+        description: "A fresh collection with no items yet"
+    )
+    state.collections.insert(emptyCollection, at: 0)
+
+    return NavigationStack {
+        CollectionDetailView(collection: emptyCollection)
+    }
+    .environment(state)
     .environment(\.isPreview, true)
 }

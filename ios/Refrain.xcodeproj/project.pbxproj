@@ -55,6 +55,7 @@
 		381A84102F78879B00ED3591 /* PreviewSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 381A840F2F78879B00ED3591 /* PreviewSupport.swift */; };
 		387CE44A2F1C0EAA00CBA664 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 600000000000000000000001 /* Supabase */; };
 		387CE44C2F1C102B00CBA664 /* cmudict.compact.json in Resources */ = {isa = PBXBuildFile; fileRef = 387CE44B2F1C102B00CBA664 /* cmudict.compact.json */; };
+		38EBF3242F79478B00B68136 /* RecordingStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38EBF3232F79478A00B68136 /* RecordingStorageService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -107,6 +108,7 @@
 		100000000000000000000031 /* KeyboardObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardObserver.swift; sourceTree = "<group>"; };
 		381A840F2F78879B00ED3591 /* PreviewSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewSupport.swift; sourceTree = "<group>"; };
 		387CE44B2F1C102B00CBA664 /* cmudict.compact.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = cmudict.compact.json; sourceTree = "<group>"; };
+		38EBF3232F79478A00B68136 /* RecordingStorageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingStorageService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -277,6 +279,7 @@
 				10000000000000000000000E /* RecordingRepository.swift */,
 				10000000000000000000000F /* CollectionRepository.swift */,
 				10000000000000000000002B /* WebAuthenticationSession.swift */,
+				38EBF3232F79478A00B68136 /* RecordingStorageService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -429,6 +432,7 @@
 				000000000000000000000018 /* SaveStatusIndicator.swift in Sources */,
 				000000000000000000000019 /* LoginView.swift in Sources */,
 				00000000000000000000001B /* LibraryView.swift in Sources */,
+				38EBF3242F79478B00B68136 /* RecordingStorageService.swift in Sources */,
 				00000000000000000000001C /* LibraryFilterSheet.swift in Sources */,
 				00000000000000000000001D /* LyricEditorView.swift in Sources */,
 				00000000000000000000001E /* EditorViewModel.swift in Sources */,
