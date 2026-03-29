@@ -4,6 +4,8 @@ struct NewCollectionSheet: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
 
+    var onCreated: ((Collection) -> Void)? = nil
+
     @State private var title = ""
     @State private var description = ""
     @State private var isCreating = false
@@ -95,10 +97,14 @@ struct NewCollectionSheet: View {
     private func createCollection() async {
         isCreating = true
 
-        _ = await appState.createCollection(
+        if let collection = await appState.createCollection(
             title: title,
             description: description.isEmpty ? nil : description
-        )
+        ) {
+            await MainActor.run {
+                onCreated?(collection)
+            }
+        }
 
         dismiss()
     }

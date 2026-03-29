@@ -80,7 +80,7 @@ struct CollectionsView: View {
                         .frame(maxWidth: .infinity)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Theme.paper)
+                    .background(Theme.canvas)
                     .clipShape(
                         RoundedCorner(
                             radius: Theme.cornerRadiusSmall,
@@ -149,11 +149,18 @@ struct CollectionsView: View {
             .frame(maxWidth: .infinity, minHeight: collectionsCardHeight, alignment: .topLeading)
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Theme.accentSoft)
+            .background(
+                LinearGradient(
+                    colors: [Color(hex: "EEF1FF"), Color(hex: "E7EBFF")],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
                     .stroke(Color(hex: "D7DDFF"), lineWidth: 2)
             )
+            .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: 5)
             .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
         }
         .buttonStyle(PressableScaleStyle())
@@ -172,11 +179,12 @@ struct CollectionsView: View {
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Theme.paper)
+        .background(Color(hex: "F7F8FF"))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
-                .stroke(Theme.divider, lineWidth: 1)
+                .stroke(Color(hex: "DFE3F5"), lineWidth: 1)
         )
+        .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 4)
         .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
     }
 }
@@ -202,11 +210,12 @@ struct CollectionCard: View {
         .padding(.horizontal, 16)
         .padding(.top, 18)
         .padding(.bottom, 6)
-        .background(Theme.paper)
+        .background(Color(hex: "FCFCFF"))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
-                .stroke(Theme.divider, lineWidth: 1)
+                .stroke(Color(hex: "E0E4F2"), lineWidth: 1)
         )
+        .shadow(color: Color.black.opacity(0.035), radius: 10, x: 0, y: 5)
         .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
     }
 }

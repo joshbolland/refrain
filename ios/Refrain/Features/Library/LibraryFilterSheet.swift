@@ -39,6 +39,43 @@ struct LibraryFilterSheet: View {
             .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadiusSmall, style: .continuous))
 
             VStack(alignment: .leading, spacing: 10) {
+                Text("Sort by")
+                    .font(.system(size: 11, weight: .semibold))
+                    .textCase(.uppercase)
+                    .tracking(1.2)
+                    .foregroundStyle(Theme.muted.opacity(0.7))
+
+                Picker("Sort by", selection: $state.librarySortOption) {
+                    ForEach(LibrarySortOption.allCases) { option in
+                        Text(option.label)
+                            .tag(option)
+                    }
+                }
+                .pickerStyle(.menu)
+                .tint(Theme.accentPressed)
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Show")
+                    .font(.system(size: 11, weight: .semibold))
+                    .textCase(.uppercase)
+                    .tracking(1.2)
+                    .foregroundStyle(Theme.muted.opacity(0.7))
+
+                Picker("Archive status", selection: $state.archiveFilter) {
+                    ForEach(LibraryArchiveFilter.allCases) { option in
+                        Text(option.label)
+                            .tag(option)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .tint(Theme.accentPressed)
+                .padding(2)
+                .background(Theme.headerBackground)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadiusSmall, style: .continuous))
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
                 Text("Filter by Collection")
                     .font(.system(size: 11, weight: .semibold))
                     .textCase(.uppercase)
@@ -126,6 +163,8 @@ private struct SheetHeightKey: PreferenceKey {
     let state = AppState.preview()
     state.selectedItemTypeFilter = .recordings
     state.selectedCollectionFilter = AppState.previewCollection().id
+    state.librarySortOption = .favoritesFirst
+    state.archiveFilter = .all
 
     return LibraryFilterSheet()
         .environment(state)

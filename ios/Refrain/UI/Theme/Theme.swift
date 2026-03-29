@@ -75,6 +75,63 @@ enum Theme {
     static let editorFontSize: CGFloat = 15
     static let editorPaddingTop: CGFloat = 32
     static let editorHorizontalPadding: CGFloat = 16
+
+    static func configureAppearance() {
+        configureSegmentedControlAppearance()
+    }
+
+    private static func configureSegmentedControlAppearance() {
+        let appearance = UISegmentedControl.appearance()
+        let normalBackground = UIImage.segmentImage(
+            color: UIColor(hex: "E8EBFF"),
+            cornerRadius: cornerRadiusSmall
+        )
+        let selectedBackground = UIImage.segmentImage(
+            color: UIColor.white,
+            cornerRadius: cornerRadiusSmall - 2,
+            contentInset: UIEdgeInsets(top: 2, left: 2, bottom: 2, right: 2)
+        )
+        let clearDivider = UIImage.segmentImage(
+            color: .clear,
+            size: CGSize(width: 1, height: 32),
+            cornerRadius: 0
+        )
+
+        appearance.setBackgroundImage(normalBackground, for: .normal, barMetrics: .default)
+        appearance.setBackgroundImage(selectedBackground, for: .selected, barMetrics: .default)
+        appearance.setDividerImage(
+            clearDivider,
+            forLeftSegmentState: .normal,
+            rightSegmentState: .normal,
+            barMetrics: .default
+        )
+        appearance.setDividerImage(
+            clearDivider,
+            forLeftSegmentState: .selected,
+            rightSegmentState: .normal,
+            barMetrics: .default
+        )
+        appearance.setDividerImage(
+            clearDivider,
+            forLeftSegmentState: .normal,
+            rightSegmentState: .selected,
+            barMetrics: .default
+        )
+        appearance.selectedSegmentTintColor = .white
+        appearance.backgroundColor = UIColor(hex: "E8EBFF")
+
+        let normalAttributes: [NSAttributedString.Key: Any] = [
+            .foregroundColor: UIColor(hex: "111827"),
+            .font: UIFont.systemFont(ofSize: 16, weight: .medium)
+        ]
+        let selectedAttributes: [NSAttributedString.Key: Any] = [
+            .foregroundColor: UIColor(hex: "111827"),
+            .font: UIFont.systemFont(ofSize: 16, weight: .semibold)
+        ]
+
+        appearance.setTitleTextAttributes(normalAttributes, for: .normal)
+        appearance.setTitleTextAttributes(selectedAttributes, for: .selected)
+    }
 }
 
 // MARK: - View Extensions
@@ -127,6 +184,46 @@ extension Color {
         let b = Double(value & 0xFF) / 255.0
 
         self.init(.sRGB, red: r, green: g, blue: b, opacity: alpha)
+    }
+}
+
+extension UIColor {
+    convenience init(hex: String, alpha: Double = 1.0) {
+        let cleaned = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var value: UInt64 = 0
+        Scanner(string: cleaned).scanHexInt64(&value)
+
+        let r = CGFloat((value >> 16) & 0xFF) / 255.0
+        let g = CGFloat((value >> 8) & 0xFF) / 255.0
+        let b = CGFloat(value & 0xFF) / 255.0
+
+        self.init(red: r, green: g, blue: b, alpha: alpha)
+    }
+}
+
+extension UIImage {
+    static func segmentImage(
+        color: UIColor,
+        size: CGSize = CGSize(width: 36, height: 32),
+        cornerRadius: CGFloat,
+        contentInset: UIEdgeInsets = .zero
+    ) -> UIImage {
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { context in
+            let rect = CGRect(origin: .zero, size: size).inset(by: contentInset)
+            let path = UIBezierPath(roundedRect: rect, cornerRadius: cornerRadius)
+            color.setFill()
+            path.fill()
+            context.cgContext.setStrokeColor(UIColor.clear.cgColor)
+            context.cgContext.stroke(rect)
+        }.resizableImage(
+            withCapInsets: UIEdgeInsets(
+                top: cornerRadius,
+                left: cornerRadius + 2,
+                bottom: cornerRadius,
+                right: cornerRadius + 2
+            )
+        )
     }
 }
 

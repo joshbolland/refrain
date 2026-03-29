@@ -10,6 +10,7 @@ struct LyricEditorView: View {
 
     @State private var viewModel: EditorViewModel
     @State private var showRhymeSuggestions = true
+    @State private var showSongwritingAnalysis = false
     @State private var collectionSheetItem: LibraryItem?
     @State private var shareSheetURL: URL?
     @State private var shareErrorMessage: String?
@@ -25,6 +26,18 @@ struct LyricEditorView: View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
                 editorHeader(topInset: geometry.safeAreaInsets.top)
+
+                if showSongwritingAnalysis {
+                    SongwritingAnalysisPanel(
+                        bodyText: viewModel.body,
+                        parsedLines: viewModel.parsedLines,
+                        sectionTypes: viewModel.sectionTypes,
+                        currentLineIndex: viewModel.currentLineIndex
+                    )
+                    .padding(.horizontal, 24)
+                    .padding(.top, 12)
+                    .padding(.bottom, 10)
+                }
 
                 LyricTextEditor(
                     text: $viewModel.body,
@@ -115,6 +128,7 @@ struct LyricEditorView: View {
                 Spacer()
 
                 rhymeToggle
+                analysisToggle
 
                 Menu {
                     Button {
@@ -189,6 +203,29 @@ struct LyricEditorView: View {
                     Capsule()
                         .stroke(
                             showRhymeSuggestions ? Theme.accent.opacity(0.5) : Theme.divider,
+                            lineWidth: 1
+                        )
+                )
+                .clipShape(Capsule())
+        }
+        .buttonStyle(PressableScaleStyle())
+    }
+
+    private var analysisToggle: some View {
+        Button {
+            showSongwritingAnalysis.toggle()
+        } label: {
+            Text("ANALYSIS")
+                .font(.system(size: 11, weight: .semibold))
+                .tracking(2)
+                .foregroundStyle(showSongwritingAnalysis ? Theme.accentPressed : Theme.muted.opacity(0.75))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(showSongwritingAnalysis ? Theme.accentSoft : Theme.paper)
+                .overlay(
+                    Capsule()
+                        .stroke(
+                            showSongwritingAnalysis ? Theme.accent.opacity(0.5) : Theme.divider,
                             lineWidth: 1
                         )
                 )

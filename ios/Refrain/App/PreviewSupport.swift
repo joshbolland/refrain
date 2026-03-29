@@ -98,6 +98,12 @@ extension AppState {
                         itemType: .lyric
                     )
                 ]
+
+                state.itemMetadataById = [
+                    firstSong.id: LibraryItemMetadata(isFavorite: true, isArchived: false),
+                    chorusIdea.id: LibraryItemMetadata(isFavorite: true, isArchived: false),
+                    verseRiff.id: LibraryItemMetadata(isFavorite: false, isArchived: true)
+                ]
             }
         } else {
             state.currentUser = nil
