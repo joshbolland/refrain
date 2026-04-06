@@ -3,14 +3,39 @@ import AVFoundation
 
 @Observable
 final class RecordingViewModel {
+    enum SaveError: LocalizedError {
+        case missingRecordingFile
+        case recordingFileNotFound
+        case notAuthenticated
+        case uploadFailed(String)
+        case createFailed
+
+        var errorDescription: String? {
+            switch self {
+            case .missingRecordingFile:
+                return "The recording file was not created."
+            case .recordingFileNotFound:
+                return "The recording file could not be found."
+            case .notAuthenticated:
+                return "You need to sign in before saving recordings."
+            case .uploadFailed(let details):
+                return "Upload failed: \(details)"
+            case .createFailed:
+                return "The recording metadata could not be saved."
+            }
+        }
+    }
+
     // MARK: - State
 
     var isRecording = false
     var isPaused = false
     var hasRecording = false
+    var isSaving = false
     var durationMs: Int = 0
     var audioLevels: [Float] = []
     var showPermissionAlert = false
+    var saveErrorMessage: String?
 
     var statusText: String {
         if isRecording {
@@ -91,7 +116,11 @@ final class RecordingViewModel {
 
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playAndRecord, mode: .default)
+            try session.setCategory(
+                .playAndRecord,
+                mode: .default,
+                options: [.defaultToSpeaker, .allowBluetoothHFP]
+            )
             try session.setActive(true)
 
             let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -165,11 +194,35 @@ final class RecordingViewModel {
     }
 
     func save(appState: AppState) async -> Recording? {
+        await MainActor.run {
+            isSaving = true
+            saveErrorMessage = nil
+        }
+        defer {
+            Task { @MainActor in
+                self.isSaving = false
+            }
+        }
+
         audioRecorder?.stop()
         stopTimers()
+        isRecording = false
+        isPaused = false
 
-        guard let url = recordingURL else { return nil }
-        guard let userId = await AuthService.shared.getCurrentUserId() else { return nil }
+        guard let url = recordingURL else {
+            saveErrorMessage = SaveError.missingRecordingFile.localizedDescription
+            return nil
+        }
+
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            saveErrorMessage = SaveError.recordingFileNotFound.localizedDescription
+            return nil
+        }
+
+        guard let userId = await AuthService.shared.getCurrentUserId() else {
+            saveErrorMessage = SaveError.notAuthenticated.localizedDescription
+            return nil
+        }
 
         let recordingId = UUID().uuidString
         let title = "Recording \(formattedDate())"
@@ -187,6 +240,11 @@ final class RecordingViewModel {
                 durationMs: durationMs
             )
 
+            guard let recording else {
+                saveErrorMessage = SaveError.createFailed.localizedDescription
+                return nil
+            }
+
             audioRecorder = nil
             recordingURL = nil
             isRecording = false
@@ -198,6 +256,7 @@ final class RecordingViewModel {
 
             return recording
         } catch {
+            saveErrorMessage = SaveError.uploadFailed(error.localizedDescription).localizedDescription
             print("Failed to upload recording: \(error)")
             return nil
         }

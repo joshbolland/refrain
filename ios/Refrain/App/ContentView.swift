@@ -19,6 +19,7 @@ struct ContentView: View {
                 await appState.initialize()
             }
         }
+        .dismissKeyboardOnTap()
         .onOpenURL { url in
             Task {
                 await appState.handleOpenURL(url)
@@ -29,16 +30,20 @@ struct ContentView: View {
 
 struct LoadingView: View {
     var body: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-                .scaleEffect(1.5)
-                .tint(Theme.accent)
-            Text("Loading...")
-                .foregroundStyle(Theme.muted.opacity(0.8))
+        ZStack {
+            AuthBackground()
+
+            Image("RefrainBird")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 240)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Theme.canvas)
     }
+}
+
+#Preview("Splash") {
+    LoadingView()
 }
 
 #Preview("Logged out") {

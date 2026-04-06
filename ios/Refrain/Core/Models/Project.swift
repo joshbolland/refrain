@@ -1,6 +1,6 @@
 import Foundation
 
-struct Collection: Identifiable, Codable, Equatable, Hashable, Sendable {
+struct Project: Identifiable, Codable, Equatable, Hashable, Sendable {
     var id: String
     var title: String
     var description: String?
@@ -9,7 +9,7 @@ struct Collection: Identifiable, Codable, Equatable, Hashable, Sendable {
 
     init(
         id: String = UUID().uuidString,
-        title: String = "Untitled Collection",
+        title: String = "Untitled Project",
         description: String? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
@@ -22,24 +22,24 @@ struct Collection: Identifiable, Codable, Equatable, Hashable, Sendable {
     }
 }
 
-enum CollectionItemType: String, Codable, Sendable {
+enum ProjectItemType: String, Codable, Sendable {
     case lyric
     case recording
 }
 
-struct CollectionAssignment: Codable, Equatable, Sendable {
-    let collectionId: String
+struct ProjectAssignment: Codable, Equatable, Sendable {
+    let projectId: String
     let itemId: String
-    let itemType: CollectionItemType
+    let itemType: ProjectItemType
     let createdAt: Date
 
     init(
-        collectionId: String,
+        projectId: String,
         itemId: String,
-        itemType: CollectionItemType,
+        itemType: ProjectItemType,
         createdAt: Date = Date()
     ) {
-        self.collectionId = collectionId
+        self.projectId = projectId
         self.itemId = itemId
         self.itemType = itemType
         self.createdAt = createdAt
@@ -48,7 +48,7 @@ struct CollectionAssignment: Codable, Equatable, Sendable {
 
 // MARK: - Supabase Database Mapping
 
-extension Collection {
+extension Project {
     struct DatabaseRow: Codable {
         let id: String
         let title: String
@@ -95,7 +95,7 @@ extension Collection {
     }
 }
 
-extension CollectionAssignment {
+extension ProjectAssignment {
     struct DatabaseRow: Codable {
         let collection_id: String
         let item_id: String
@@ -111,6 +111,7 @@ extension CollectionAssignment {
     }
 
     struct InsertRow: Codable {
+        let user_id: String
         let collection_id: String
         let item_id: String
         let item_type: String
@@ -118,16 +119,17 @@ extension CollectionAssignment {
     }
 
     init(from row: DatabaseRow) {
-        self.collectionId = row.collection_id
+        self.projectId = row.collection_id
         self.itemId = row.item_id
-        self.itemType = CollectionItemType(rawValue: row.item_type) ?? .lyric
+        self.itemType = ProjectItemType(rawValue: row.item_type) ?? .lyric
         self.createdAt = ISO8601DateFormatter().date(from: row.created_at) ?? Date()
     }
 
-    func toInsertRow() -> InsertRow {
+    func toInsertRow(userId: String) -> InsertRow {
         let formatter = ISO8601DateFormatter()
         return InsertRow(
-            collection_id: collectionId,
+            user_id: userId,
+            collection_id: projectId,
             item_id: itemId,
             item_type: itemType.rawValue,
             created_at: formatter.string(from: createdAt)

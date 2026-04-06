@@ -1,19 +1,19 @@
 import Foundation
 import Supabase
 
-final class CollectionRepository: Sendable {
+final class ProjectRepository: Sendable {
     private let supabase = SupabaseService.shared.client
     private let tableName = "collections"
-    private let assignmentsTableName = "collection_assignments"
+    private let assignmentsTableName = "collection_items"
 
-    // MARK: - Collection CRUD Operations
+    // MARK: - Project CRUD Operations
 
-    func fetchAll() async throws -> [Collection] {
+    func fetchAll() async throws -> [Project] {
         guard let userId = await AuthService.shared.getCurrentUserId() else {
             throw RepositoryError.notAuthenticated
         }
 
-        let rows: [Collection.DatabaseRow] = try await supabase
+        let rows: [Project.DatabaseRow] = try await supabase
             .from(tableName)
             .select()
             .eq("user_id", value: userId)
@@ -21,15 +21,15 @@ final class CollectionRepository: Sendable {
             .execute()
             .value
 
-        return rows.map { Collection(from: $0) }
+        return rows.map { Project(from: $0) }
     }
 
-    func fetch(id: String) async throws -> Collection? {
+    func fetch(id: String) async throws -> Project? {
         guard let userId = await AuthService.shared.getCurrentUserId() else {
             throw RepositoryError.notAuthenticated
         }
 
-        let rows: [Collection.DatabaseRow] = try await supabase
+        let rows: [Project.DatabaseRow] = try await supabase
             .from(tableName)
             .select()
             .eq("id", value: id)
@@ -38,29 +38,29 @@ final class CollectionRepository: Sendable {
             .execute()
             .value
 
-        return rows.first.map { Collection(from: $0) }
+        return rows.first.map { Project(from: $0) }
     }
 
-    func create(_ collection: Collection) async throws {
+    func create(_ project: Project) async throws {
         guard let userId = await AuthService.shared.getCurrentUserId() else {
             throw RepositoryError.notAuthenticated
         }
 
         try await supabase
             .from(tableName)
-            .insert(collection.toInsertRow(userId: userId))
+            .insert(project.toInsertRow(userId: userId))
             .execute()
     }
 
-    func update(_ collection: Collection) async throws {
+    func update(_ project: Project) async throws {
         guard let userId = await AuthService.shared.getCurrentUserId() else {
             throw RepositoryError.notAuthenticated
         }
 
         try await supabase
             .from(tableName)
-            .update(collection.toInsertRow(userId: userId))
-            .eq("id", value: collection.id)
+            .update(project.toInsertRow(userId: userId))
+            .eq("id", value: project.id)
             .eq("user_id", value: userId)
             .execute()
     }
@@ -75,9 +75,10 @@ final class CollectionRepository: Sendable {
             .from(assignmentsTableName)
             .delete()
             .eq("collection_id", value: id)
+            .eq("user_id", value: userId)
             .execute()
 
-        // Then delete the collection
+        // Then delete the project
         try await supabase
             .from(tableName)
             .delete()
@@ -88,53 +89,69 @@ final class CollectionRepository: Sendable {
 
     // MARK: - Assignment Operations
 
-    func fetchAllAssignments() async throws -> [CollectionAssignment] {
-        guard await AuthService.shared.getCurrentUserId() != nil else {
+    func fetchAllAssignments() async throws -> [ProjectAssignment] {
+        guard let userId = await AuthService.shared.getCurrentUserId() else {
             throw RepositoryError.notAuthenticated
         }
 
-        // Fetch assignments for collections owned by the user
-        let collections = try await fetchAll()
-        let collectionIds = collections.map { $0.id }
+        // Fetch assignments for projects owned by the user
+        let projects = try await fetchAll()
+        let projectIds = projects.map { $0.id }
 
-        guard !collectionIds.isEmpty else {
+        guard !projectIds.isEmpty else {
             return []
         }
 
-        let rows: [CollectionAssignment.DatabaseRow] = try await supabase
+        let rows: [ProjectAssignment.DatabaseRow] = try await supabase
             .from(assignmentsTableName)
             .select()
-            .in("collection_id", values: collectionIds)
+            .eq("user_id", value: userId)
+            .in("collection_id", values: projectIds)
             .execute()
             .value
 
-        return rows.map { CollectionAssignment(from: $0) }
+        return rows.map { ProjectAssignment(from: $0) }
     }
 
-    func fetchAssignments(for collectionId: String) async throws -> [CollectionAssignment] {
-        let rows: [CollectionAssignment.DatabaseRow] = try await supabase
+    func fetchAssignments(for projectId: String) async throws -> [ProjectAssignment] {
+        guard let userId = await AuthService.shared.getCurrentUserId() else {
+            throw RepositoryError.notAuthenticated
+        }
+
+        let rows: [ProjectAssignment.DatabaseRow] = try await supabase
             .from(assignmentsTableName)
             .select()
-            .eq("collection_id", value: collectionId)
+            .eq("user_id", value: userId)
+            .eq("collection_id", value: projectId)
             .execute()
             .value
 
-        return rows.map { CollectionAssignment(from: $0) }
+        return rows.map { ProjectAssignment(from: $0) }
     }
 
-    func createAssignment(_ assignment: CollectionAssignment) async throws {
+    func createAssignment(_ assignment: ProjectAssignment) async throws {
+        guard let userId = await AuthService.shared.getCurrentUserId() else {
+            throw RepositoryError.notAuthenticated
+        }
+
         try await supabase
             .from(assignmentsTableName)
-            .insert(assignment.toInsertRow())
+            .insert(assignment.toInsertRow(userId: userId))
             .execute()
     }
 
-    func deleteAssignment(collectionId: String, itemId: String) async throws {
+    func deleteAssignment(projectId: String, itemId: String, itemType: ProjectItemType) async throws {
+        guard let userId = await AuthService.shared.getCurrentUserId() else {
+            throw RepositoryError.notAuthenticated
+        }
+
         try await supabase
             .from(assignmentsTableName)
             .delete()
-            .eq("collection_id", value: collectionId)
+            .eq("user_id", value: userId)
+            .eq("collection_id", value: projectId)
             .eq("item_id", value: itemId)
+            .eq("item_type", value: itemType.rawValue)
             .execute()
     }
 }

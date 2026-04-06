@@ -2,39 +2,41 @@ import SwiftUI
 
 enum MainTab: Hashable {
     case library
-    case collections
+    case projects
 }
 
 struct MainTabView: View {
     @Environment(AppState.self) private var appState
 
-    @State private var selectedTab: MainTab = .library
     @State private var showCreateSheet = false
     @State private var newLyric: LyricFile?
     @State private var showRecording = false
 
-    init(selectedTab: MainTab = .library) {
-        _selectedTab = State(initialValue: selectedTab)
-    }
-
     var body: some View {
-        TabView(selection: $selectedTab) {
+        ZStack {
             LibraryView()
-                .tag(MainTab.library)
+                .opacity(appState.selectedTab == .library ? 1 : 0)
+                .allowsHitTesting(appState.selectedTab == .library)
 
-            CollectionsView()
-                .tag(MainTab.collections)
+            ProjectsView()
+                .opacity(appState.selectedTab == .projects ? 1 : 0)
+                .allowsHitTesting(appState.selectedTab == .projects)
         }
-        .toolbar(.hidden, for: .tabBar)
-        .safeAreaInset(edge: .bottom) {
-            if !appState.isTabBarHidden && !showRecording {
-                PrimaryTabBar(
-                    selectedTab: $selectedTab,
-                    onCreate: { showCreateSheet = true }
-                )
-            }
+        .background(Theme.paper)
+        .overlay(alignment: .bottom) {
+            PrimaryTabBarContainer(
+                isVisible: !appState.isTabBarHidden && !showRecording,
+                selectedTab: Binding(
+                    get: { appState.selectedTab },
+                    set: { appState.selectedTab = $0 }
+                ),
+                onCreate: { showCreateSheet = true }
+            )
         }
-        .ignoresSafeArea(.keyboard, edges: .bottom)
+        .ignoresSafeArea(
+            .keyboard,
+            edges: appState.isTabBarHidden || showRecording ? [] : .bottom
+        )
         .sheet(isPresented: $showCreateSheet) {
             CreateActionSheet(
                 onCreateLyric: {
@@ -65,9 +67,26 @@ struct MainTabView: View {
     }
 }
 
+struct PrimaryTabBarContainer: View {
+    let isVisible: Bool
+    @Binding var selectedTab: MainTab
+    let onCreate: () -> Void
+
+    var body: some View {
+        PrimaryTabBar(selectedTab: $selectedTab, onCreate: onCreate)
+            .opacity(isVisible ? 1 : 0)
+            .offset(y: isVisible ? 0 : 28)
+            .allowsHitTesting(isVisible)
+            .animation(.easeOut(duration: 0.18), value: isVisible)
+    }
+}
+
 struct PrimaryTabBar: View {
     @Binding var selectedTab: MainTab
     let onCreate: () -> Void
+    @State private var createButtonScale: CGFloat = 1
+    @State private var createPulseScale: CGFloat = 1
+    @State private var createPulseOpacity = 0.0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -86,8 +105,14 @@ struct PrimaryTabBar: View {
                 }
                 .frame(maxWidth: .infinity)
 
-                Button(action: onCreate) {
+                Button(action: animateCreateButton) {
                     ZStack {
+                        Circle()
+                            .stroke(Theme.accent.opacity(0.3), lineWidth: 10)
+                            .frame(width: 56, height: 56)
+                            .scaleEffect(createPulseScale)
+                            .opacity(createPulseOpacity)
+
                         Circle()
                             .fill(Theme.accent)
                             .frame(width: 56, height: 56)
@@ -100,6 +125,7 @@ struct PrimaryTabBar: View {
                             .font(.system(size: 28, weight: .bold))
                             .foregroundStyle(.white)
                     }
+                    .scaleEffect(createButtonScale)
                 }
                 .buttonStyle(PressableScaleStyle())
                 .shadow(color: Color.black.opacity(0.14), radius: 14, x: 0, y: 8)
@@ -107,12 +133,12 @@ struct PrimaryTabBar: View {
                 .frame(maxWidth: .infinity)
 
                 TabItem(
-                    title: "Collections",
+                    title: "Projects",
                     systemImage: "square.grid.2x2",
                     selectedSystemImage: "square.grid.2x2.fill",
-                    isSelected: selectedTab == .collections
+                    isSelected: selectedTab == .projects
                 ) {
-                    selectedTab = .collections
+                    selectedTab = .projects
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -122,6 +148,32 @@ struct PrimaryTabBar: View {
             .background(Theme.paper)
         }
         .frame(maxWidth: .infinity)
+        .background(Theme.paper.ignoresSafeArea(edges: .bottom))
+    }
+
+    private func animateCreateButton() {
+        withAnimation(.easeOut(duration: 0.08)) {
+            createButtonScale = 0.9
+        }
+
+        withAnimation(.spring(response: 0.26, dampingFraction: 0.5).delay(0.08)) {
+            createButtonScale = 1.08
+        }
+
+        createPulseScale = 1
+        createPulseOpacity = 0.45
+        withAnimation(.easeOut(duration: 0.32)) {
+            createPulseScale = 1.45
+            createPulseOpacity = 0
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+            withAnimation(.spring(response: 0.24, dampingFraction: 0.72)) {
+                createButtonScale = 1
+            }
+        }
+
+        onCreate()
     }
 }
 
@@ -165,8 +217,8 @@ struct CreateActionSheet: View {
                 title: "New Lyric",
                 subtitle: "Draft a fresh refrain.",
                 systemImage: "music.note",
-                background: Color(hex: "F4F6FF"),
-                border: Color(hex: "D5DAF1"),
+                background: Theme.paper,
+                border: Color(hex: "DDE2F0"),
                 action: onCreateLyric
             )
 
@@ -233,8 +285,10 @@ struct CreateActionCard: View {
         .environment(\.isPreview, true)
 }
 
-#Preview("Collections Tab") {
-    MainTabView(selectedTab: .collections)
-        .environment(AppState.preview())
+#Preview("Projects Tab") {
+    let state = AppState.preview()
+    state.selectedTab = .projects
+    return MainTabView()
+        .environment(state)
         .environment(\.isPreview, true)
 }

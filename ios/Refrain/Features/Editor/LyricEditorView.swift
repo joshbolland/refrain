@@ -10,7 +10,6 @@ struct LyricEditorView: View {
 
     @State private var viewModel: EditorViewModel
     @State private var showRhymeSuggestions = true
-    @State private var showSongwritingAnalysis = false
     @State private var collectionSheetItem: LibraryItem?
     @State private var shareSheetURL: URL?
     @State private var shareErrorMessage: String?
@@ -27,23 +26,12 @@ struct LyricEditorView: View {
             VStack(spacing: 0) {
                 editorHeader(topInset: geometry.safeAreaInsets.top)
 
-                if showSongwritingAnalysis {
-                    SongwritingAnalysisPanel(
-                        bodyText: viewModel.body,
-                        parsedLines: viewModel.parsedLines,
-                        sectionTypes: viewModel.sectionTypes,
-                        currentLineIndex: viewModel.currentLineIndex
-                    )
-                    .padding(.horizontal, 24)
-                    .padding(.top, 12)
-                    .padding(.bottom, 10)
-                }
-
                 LyricTextEditor(
                     text: $viewModel.body,
                     sectionTypes: viewModel.sectionTypes,
                     parsedLines: viewModel.parsedLines,
                     currentWord: viewModel.currentWord,
+                    keyboardInset: max(0, keyboardObserver.height - geometry.safeAreaInsets.bottom),
                     showsRhymeSuggestions: showRhymeSuggestions && keyboardObserver.isVisible,
                     onSectionBadgeTap: { lineIndex in
                         viewModel.openPickerForEditing(at: lineIndex)
@@ -70,9 +58,10 @@ struct LyricEditorView: View {
             .background(Theme.paper)
             .ignoresSafeArea(edges: .top)
         }
+        .background(EditorInteractivePopGestureEnabler())
         .toolbar(.hidden, for: .navigationBar)
         .sheet(item: $collectionSheetItem) { item in
-            CollectionsSheet(item: item)
+            ProjectsSheet(item: item)
         }
         .sheet(isPresented: shareSheetIsPresented, onDismiss: {
             shareSheetURL = nil
@@ -109,32 +98,19 @@ struct LyricEditorView: View {
     private func editorHeader(topInset: CGFloat) -> some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                Button {
+                AppBackButton {
                     dismiss()
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 12, weight: .semibold))
-
-                        Text("BACK")
-                            .font(.system(size: 11, weight: .semibold))
-                            .tracking(2)
-                    }
-                    .foregroundStyle(Theme.accentPressed)
-                    .padding(.vertical, 6)
                 }
-                .buttonStyle(PressableScaleStyle())
 
                 Spacer()
 
                 rhymeToggle
-                analysisToggle
 
                 Menu {
                     Button {
                         collectionSheetItem = .lyric(file)
                     } label: {
-                        Label("Add to Collection", systemImage: "folder.badge.plus")
+                        Label("Add to Project", systemImage: "folder.badge.plus")
                     }
 
                     Button {
@@ -211,29 +187,6 @@ struct LyricEditorView: View {
         .buttonStyle(PressableScaleStyle())
     }
 
-    private var analysisToggle: some View {
-        Button {
-            showSongwritingAnalysis.toggle()
-        } label: {
-            Text("ANALYSIS")
-                .font(.system(size: 11, weight: .semibold))
-                .tracking(2)
-                .foregroundStyle(showSongwritingAnalysis ? Theme.accentPressed : Theme.muted.opacity(0.75))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .background(showSongwritingAnalysis ? Theme.accentSoft : Theme.paper)
-                .overlay(
-                    Capsule()
-                        .stroke(
-                            showSongwritingAnalysis ? Theme.accent.opacity(0.5) : Theme.divider,
-                            lineWidth: 1
-                        )
-                )
-                .clipShape(Capsule())
-        }
-        .buttonStyle(PressableScaleStyle())
-    }
-
     private var shareErrorIsPresented: Binding<Bool> {
         Binding(
             get: { shareErrorMessage != nil },
@@ -296,6 +249,20 @@ struct LyricEditorView: View {
         }
         let cleaned = String(cleanedScalars).trimmingCharacters(in: .whitespacesAndNewlines)
         return cleaned.isEmpty ? "Untitled" : cleaned
+    }
+}
+
+private struct EditorInteractivePopGestureEnabler: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> UIViewController {
+        UIViewController()
+    }
+
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
+        DispatchQueue.main.async {
+            guard let navigationController = uiViewController.navigationController else { return }
+            navigationController.interactivePopGestureRecognizer?.isEnabled = true
+            navigationController.interactivePopGestureRecognizer?.delegate = nil
+        }
     }
 }
 

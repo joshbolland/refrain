@@ -37,8 +37,8 @@ struct RecordingView: View {
                             .background(Color.red.opacity(0.1))
                             .clipShape(Circle())
                     }
-                    .disabled(!viewModel.hasRecording)
-                    .opacity(viewModel.hasRecording ? 1 : 0.3)
+                    .disabled(!viewModel.hasRecording || viewModel.isSaving)
+                    .opacity(viewModel.hasRecording && !viewModel.isSaving ? 1 : 0.3)
 
                     // Record/Pause button
                     Button {
@@ -70,6 +70,8 @@ struct RecordingView: View {
                             }
                         }
                     }
+                    .disabled(viewModel.isSaving)
+                    .opacity(viewModel.isSaving ? 0.5 : 1)
 
                     // Save button
                     Button {
@@ -79,22 +81,40 @@ struct RecordingView: View {
                             }
                         }
                     } label: {
-                        Image(systemName: "checkmark")
-                            .font(.title2)
-                            .foregroundStyle(.green)
-                            .frame(width: 60, height: 60)
-                            .background(Color.green.opacity(0.1))
-                            .clipShape(Circle())
+                        ZStack {
+                            Circle()
+                                .fill(Color.green.opacity(0.1))
+                                .frame(width: 60, height: 60)
+
+                            if viewModel.isSaving {
+                                ProgressView()
+                                    .tint(.green)
+                            } else {
+                                Image(systemName: "checkmark")
+                                    .font(.title2)
+                                    .foregroundStyle(.green)
+                            }
+                        }
                     }
-                    .disabled(!viewModel.hasRecording || viewModel.isRecording)
-                    .opacity(viewModel.hasRecording && !viewModel.isRecording ? 1 : 0.3)
+                    .disabled(!viewModel.hasRecording || viewModel.isRecording || viewModel.isSaving)
+                    .opacity(viewModel.hasRecording && !viewModel.isRecording && !viewModel.isSaving ? 1 : 0.3)
                 }
 
                 // Status text
-                Text(viewModel.statusText)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .padding(.bottom, 32)
+                VStack(spacing: 8) {
+                    Text(viewModel.statusText)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    if let saveErrorMessage = viewModel.saveErrorMessage {
+                        Text(saveErrorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                    }
+                }
+                .padding(.bottom, 32)
             }
             .navigationTitle("Record")
             .navigationBarTitleDisplayMode(.inline)

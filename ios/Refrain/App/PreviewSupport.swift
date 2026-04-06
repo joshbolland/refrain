@@ -7,12 +7,12 @@ extension AppState {
         state.isLoading = false
 
         if loggedIn {
-            let favoritesCollection = Collection(
+            let favoritesProject = Project(
                 id: "collection-favorites",
                 title: "Favorites",
                 description: "Best ideas worth keeping close"
             )
-            let albumDraftsCollection = Collection(
+            let albumDraftsProject = Project(
                 id: "collection-album-drafts",
                 title: "Album Drafts",
                 description: "Work in progress for the next release"
@@ -76,24 +76,24 @@ extension AppState {
                     verseRiff
                 ]
 
-                state.collections = [
-                    favoritesCollection,
-                    albumDraftsCollection
+                state.projects = [
+                    favoritesProject,
+                    albumDraftsProject
                 ]
 
-                state.collectionAssignments = [
-                    CollectionAssignment(
-                        collectionId: favoritesCollection.id,
+                state.projectAssignments = [
+                    ProjectAssignment(
+                        projectId: favoritesProject.id,
                         itemId: firstSong.id,
                         itemType: .lyric
                     ),
-                    CollectionAssignment(
-                        collectionId: favoritesCollection.id,
+                    ProjectAssignment(
+                        projectId: favoritesProject.id,
                         itemId: chorusIdea.id,
                         itemType: .recording
                     ),
-                    CollectionAssignment(
-                        collectionId: albumDraftsCollection.id,
+                    ProjectAssignment(
+                        projectId: albumDraftsProject.id,
                         itemId: midnightDrive.id,
                         itemType: .lyric
                     )
@@ -112,8 +112,8 @@ extension AppState {
         return state
     }
 
-    static func previewCollection(id: String = "collection-favorites") -> Collection {
-        preview().collections.first(where: { $0.id == id }) ?? Collection(id: id)
+    static func previewProject(id: String = "collection-favorites") -> Project {
+        preview().projects.first(where: { $0.id == id }) ?? Project(id: id)
     }
 
     static func previewLyric(id: String = "lyric-1") -> LyricFile {

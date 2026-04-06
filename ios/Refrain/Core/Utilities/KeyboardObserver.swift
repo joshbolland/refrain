@@ -15,35 +15,32 @@ final class KeyboardObserver {
     }
 
     private func setupKeyboardObservers() {
-        NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
+        NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)
             .sink { [weak self] notification in
-                self?.handleKeyboardWillShow(notification)
+                self?.handleKeyboardFrameChange(notification)
             }
             .store(in: &cancellables)
 
         NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
-            .sink { [weak self] _ in
-                self?.handleKeyboardWillHide()
+            .sink { [weak self] notification in
+                self?.handleKeyboardFrameChange(notification)
             }
             .store(in: &cancellables)
     }
 
-    private func handleKeyboardWillShow(_ notification: Notification) {
+    private func handleKeyboardFrameChange(_ notification: Notification) {
         guard let userInfo = notification.userInfo,
               let keyboardFrame = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else {
             return
         }
 
-        withAnimation(.easeOut(duration: 0.25)) {
-            isVisible = true
-            height = keyboardFrame.height
-        }
-    }
+        let visibleHeight = max(0, UIScreen.main.bounds.maxY - keyboardFrame.minY)
+        let animationDuration =
+            (userInfo[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
 
-    private func handleKeyboardWillHide() {
-        withAnimation(.easeOut(duration: 0.25)) {
-            isVisible = false
-            height = 0
+        withAnimation(.easeOut(duration: animationDuration)) {
+            isVisible = visibleHeight > 0
+            height = visibleHeight
         }
     }
 }

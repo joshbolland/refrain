@@ -2,9 +2,11 @@ import SwiftUI
 
 struct ProfileView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     @Environment(AppState.self) private var appState
 
     @State private var isSigningOut = false
+    @State private var isDeletingAccountData = false
     @State private var showDeleteAlert = false
 
     private var appVersion: String {
@@ -40,38 +42,21 @@ struct ProfileView: View {
 
                         SectionCard(title: "Your data") {
                             ProfileRow(
-                                label: "Manage recordings",
-                                helper: "Review and clean up takes",
-                                icon: "mic",
-                                onPress: { handlePlaceholder(title: "Manage recordings") }
-                            )
-
-                            ProfileRow(
-                                label: "Manage lyrics",
-                                helper: "Organize drafts and collections",
-                                icon: "music.note.list",
-                                onPress: { handlePlaceholder(title: "Manage lyrics") }
+                                label: "Delete account data",
+                                value: isDeletingAccountData ? "Deleting..." : nil,
+                                helper: "Permanently removes your lyrics, recordings, and projects",
+                                icon: "trash",
+                                destructive: true,
+                                onPress: isDeletingAccountData ? nil : { showDeleteAlert = true }
                             )
                         }
 
                         SectionCard(title: "App") {
                             ProfileRow(
                                 label: "Help / Support",
-                                helper: "Get in touch with the team",
+                                value: "jjm.bolland@gmail.com",
                                 icon: "lifepreserver",
-                                onPress: { handlePlaceholder(title: "Help / Support") }
-                            )
-
-                            ProfileRow(
-                                label: "Privacy policy",
-                                icon: "hand.raised",
-                                onPress: { handlePlaceholder(title: "Privacy policy") }
-                            )
-
-                            ProfileRow(
-                                label: "Terms",
-                                icon: "doc.text",
-                                onPress: { handlePlaceholder(title: "Terms") }
+                                onPress: handleSupport
                             )
 
                             ProfileRow(
@@ -79,16 +64,6 @@ struct ProfileView: View {
                                 value: "v\(appVersion)",
                                 icon: "info.circle",
                                 showChevron: false
-                            )
-                        }
-
-                        SectionCard(title: "Danger zone") {
-                            ProfileRow(
-                                label: "Delete account",
-                                helper: "Remove your data from Refrain",
-                                icon: "trash",
-                                destructive: true,
-                                onPress: { showDeleteAlert = true }
                             )
                         }
                     }
@@ -100,37 +75,17 @@ struct ProfileView: View {
         }
         .alert("Delete account", isPresented: $showDeleteAlert) {
             Button("Cancel", role: .cancel) {}
-            Button("Understood", role: .destructive) {}
+            Button("Delete", role: .destructive, action: handleDeleteAccountData)
         } message: {
-            Text("Account deletion is not available yet. Contact support to remove your data.")
+            Text("This permanently deletes your lyrics, recordings, and projects from Refrain, then signs you out.")
         }
     }
 
     private func headerView(topInset: CGFloat) -> some View {
         HStack(spacing: 12) {
-            Button {
+            AppBackButton {
                 dismiss()
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 14, weight: .semibold))
-
-                    Text("Back")
-                        .font(.system(size: 11, weight: .semibold))
-                        .textCase(.uppercase)
-                        .tracking(1.4)
-                }
-                .foregroundStyle(Theme.accentPressed)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color(hex: "E8EBFF"))
-                .overlay(
-                    Capsule()
-                        .stroke(Color(hex: "C7D1FF"), lineWidth: 1)
-                )
-                .clipShape(Capsule())
             }
-            .buttonStyle(PressableScaleStyle())
 
             Spacer()
         }
@@ -181,9 +136,27 @@ struct ProfileView: View {
         }
     }
 
-    private func handlePlaceholder(title: String) {
-        // TODO: Implement these features
-        print("Placeholder action: \(title)")
+    private func handleSupport() {
+        guard let emailURL = URL(string: "mailto:jjm.bolland@gmail.com") else {
+            return
+        }
+        openURL(emailURL)
+    }
+
+    private func handleDeleteAccountData() {
+        Task {
+            isDeletingAccountData = true
+
+            await appState.deleteCurrentAccountData()
+
+            do {
+                try await AuthService.shared.signOut()
+            } catch {
+                print("Delete account sign out error: \(error)")
+            }
+
+            isDeletingAccountData = false
+        }
     }
 }
 

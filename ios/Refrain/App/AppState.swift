@@ -1,5 +1,7 @@
 import SwiftUI
 import Supabase
+import AVFoundation
+import UniformTypeIdentifiers
 
 enum LibraryItemTypeFilter: String, CaseIterable, Identifiable, Sendable {
     case all
@@ -66,6 +68,17 @@ struct LibraryItemMetadata: Codable, Equatable, Sendable {
     var isArchived = false
 }
 
+struct SharedImportFeedback: Sendable {
+    let items: [LibraryItem]
+
+    var count: Int { items.count }
+    var latestItem: LibraryItem? { items.last }
+
+    var message: String {
+        count == 1 ? "Imported 1 item from share." : "Imported \(count) items from share."
+    }
+}
+
 @Observable
 final class AppState {
     private static let libraryMetadataDefaultsKey = "refrain.library.item.metadata"
@@ -77,12 +90,12 @@ final class AppState {
     // MARK: - Library State
     var lyricFiles: [LyricFile] = []
     var recordings: [Recording] = []
-    var collections: [Collection] = []
-    var collectionAssignments: [CollectionAssignment] = []
+    var projects: [Project] = []
+    var projectAssignments: [ProjectAssignment] = []
 
     // MARK: - Filter State
     var searchQuery = ""
-    var selectedCollectionFilter: Collection.ID?
+    var selectedProjectFilter: Project.ID?
     var selectedItemTypeFilter: LibraryItemTypeFilter = .all
     var librarySortOption: LibrarySortOption = .recentlyUpdated
     var archiveFilter: LibraryArchiveFilter = .activeOnly
@@ -92,12 +105,15 @@ final class AppState {
 
     // MARK: - UI State
     var isTabBarHidden = false
+    var selectedTab: MainTab = .library
+    var pendingLibrarySelection: LibraryItem?
+    var sharedImportFeedback: SharedImportFeedback?
 
     // MARK: - Services
     private let authService = AuthService.shared
     private let lyricRepository = LyricRepository()
     private let recordingRepository = RecordingRepository()
-    private let collectionRepository = CollectionRepository()
+    private let projectRepository = ProjectRepository()
     private let recordingStorageService = RecordingStorageService.shared
 
     // MARK: - Initialization
@@ -114,6 +130,7 @@ final class AppState {
         if let user = await authService.getCurrentUser() {
             currentUser = user
             await loadAllData()
+            await importSharedItemsIfNeeded()
         }
 
         // Listen for auth state changes
@@ -124,6 +141,7 @@ final class AppState {
                 }
                 if state.user != nil {
                     await loadAllData()
+                    await importSharedItemsIfNeeded()
                 } else {
                     await MainActor.run {
                         clearData()
@@ -136,17 +154,24 @@ final class AppState {
     // MARK: - OAuth Callback Handling
 
     func handleOpenURL(_ url: URL) async {
-        guard url.scheme == Config.oauthCallbackScheme, url.host == "auth" else {
+        guard url.scheme == Config.oauthCallbackScheme else {
             return
         }
 
-        do {
-            let user = try await authService.handleOAuthCallback(url: url)
-            await MainActor.run {
-                self.currentUser = user
+        if url.host == "auth" {
+            do {
+                let user = try await authService.handleOAuthCallback(url: url)
+                await MainActor.run {
+                    self.currentUser = user
+                }
+            } catch {
+                print("Error handling OAuth callback: \(error)")
             }
-        } catch {
-            print("Error handling OAuth callback: \(error)")
+            return
+        }
+
+        if url.host == "shared-import" {
+            await importSharedItemsIfNeeded()
         }
     }
 
@@ -156,8 +181,8 @@ final class AppState {
         await withTaskGroup(of: Void.self) { group in
             group.addTask { await self.loadLyricFiles() }
             group.addTask { await self.loadRecordings() }
-            group.addTask { await self.loadCollections() }
-            group.addTask { await self.loadCollectionAssignments() }
+            group.addTask { await self.loadProjects() }
+            group.addTask { await self.loadProjectAssignments() }
         }
     }
 
@@ -165,8 +190,8 @@ final class AppState {
     private func clearData() {
         lyricFiles = []
         recordings = []
-        collections = []
-        collectionAssignments = []
+        projects = []
+        projectAssignments = []
     }
 
     func loadLyricFiles() async {
@@ -191,25 +216,74 @@ final class AppState {
         }
     }
 
-    func loadCollections() async {
+    func loadProjects() async {
         do {
-            let items = try await collectionRepository.fetchAll()
+            let items = try await projectRepository.fetchAll()
             await MainActor.run {
-                self.collections = items
+                self.projects = items
             }
         } catch {
-            print("Error loading collections: \(error)")
+            print("Error loading projects: \(error)")
         }
     }
 
-    func loadCollectionAssignments() async {
+    func loadProjectAssignments() async {
         do {
-            let items = try await collectionRepository.fetchAllAssignments()
+            let items = try await projectRepository.fetchAllAssignments()
             await MainActor.run {
-                self.collectionAssignments = items
+                self.projectAssignments = items
             }
         } catch {
-            print("Error loading collection assignments: \(error)")
+            print("Error loading project assignments: \(error)")
+        }
+    }
+
+    func importSharedItemsIfNeeded() async {
+        guard currentUser != nil else {
+            return
+        }
+
+        let pendingItems: [PendingSharedImport]
+        do {
+            pendingItems = try SharedImportStore.shared.pendingItems()
+        } catch {
+            print("Error loading shared imports: \(error)")
+            return
+        }
+
+        guard !pendingItems.isEmpty else {
+            return
+        }
+
+        var importedItems: [LibraryItem] = []
+
+        for item in pendingItems {
+            do {
+                switch item.kind {
+                case .lyricText:
+                    let importedItem = try await importSharedLyric(item)
+                    importedItems.append(importedItem)
+                case .audioRecording:
+                    let importedItem = try await importSharedRecording(item)
+                    importedItems.append(importedItem)
+                }
+
+                try SharedImportStore.shared.removeItem(id: item.id)
+            } catch {
+                print("Error importing shared item \(item.id): \(error)")
+            }
+        }
+
+        guard !importedItems.isEmpty else {
+            return
+        }
+
+        let finalizedImportedItems = importedItems
+
+        await MainActor.run {
+            selectedTab = .library
+            sharedImportFeedback = SharedImportFeedback(items: finalizedImportedItems)
+            pendingLibrarySelection = finalizedImportedItems.count == 1 ? finalizedImportedItems[0] : nil
         }
     }
 
@@ -232,14 +306,14 @@ final class AppState {
             }
         }
 
-        // Apply collection filter
-        if let collectionId = selectedCollectionFilter {
-            let itemIdsInCollection = Set(
-                collectionAssignments
-                    .filter { $0.collectionId == collectionId }
+        // Apply project filter
+        if let projectId = selectedProjectFilter {
+            let itemIdsInProject = Set(
+                projectAssignments
+                    .filter { $0.projectId == projectId }
                     .map { $0.itemId }
             )
-            items = items.filter { itemIdsInCollection.contains($0.id) }
+            items = items.filter { itemIdsInProject.contains($0.id) }
         }
 
         if selectedItemTypeFilter != .all {
@@ -352,7 +426,7 @@ final class AppState {
             try await lyricRepository.delete(file.id)
             await MainActor.run {
                 self.lyricFiles.removeAll { $0.id == file.id }
-                self.collectionAssignments.removeAll { $0.itemId == file.id }
+                self.projectAssignments.removeAll { $0.itemId == file.id }
                 self.removeMetadata(forItemId: file.id)
             }
         } catch {
@@ -441,7 +515,7 @@ final class AppState {
             try await recordingRepository.delete(recording.id)
             await MainActor.run {
                 self.recordings.removeAll { $0.id == recording.id }
-                self.collectionAssignments.removeAll { $0.itemId == recording.id }
+                self.projectAssignments.removeAll { $0.itemId == recording.id }
                 self.removeMetadata(forItemId: recording.id)
             }
         } catch {
@@ -485,6 +559,24 @@ final class AppState {
         }
     }
 
+    func deleteCurrentAccountData() async {
+        let recordingsToDelete = recordings
+        let lyricFilesToDelete = lyricFiles
+        let projectsToDelete = projects
+
+        for recording in recordingsToDelete {
+            await deleteRecording(recording)
+        }
+
+        for file in lyricFilesToDelete {
+            await deleteLyricFile(file)
+        }
+
+        for project in projectsToDelete {
+            await deleteProject(project)
+        }
+    }
+
     func setFavorite(_ isFavorite: Bool, for item: LibraryItem) {
         setFavorite(isFavorite, for: [item])
     }
@@ -505,10 +597,10 @@ final class AppState {
         }
     }
 
-    // MARK: - Collection Operations
+    // MARK: - Project Operations
 
-    func createCollection(title: String, description: String? = nil) async -> Collection? {
-        let collection = Collection(
+    func createProject(title: String, description: String? = nil) async -> Project? {
+        let project = Project(
             id: UUID().uuidString,
             title: title,
             description: description,
@@ -517,137 +609,150 @@ final class AppState {
         )
 
         do {
-            try await collectionRepository.create(collection)
+            try await projectRepository.create(project)
             await MainActor.run {
-                self.collections.insert(collection, at: 0)
+                self.projects.insert(project, at: 0)
             }
-            return collection
+            return project
         } catch {
-            print("Error creating collection: \(error)")
+            print("Error creating project: \(error)")
             return nil
         }
     }
 
-    func updateCollection(_ collection: Collection) async {
-        var updated = collection
+    func updateProject(_ project: Project) async {
+        var updated = project
         updated.updatedAt = Date()
         let finalUpdated = updated
 
         do {
-            try await collectionRepository.update(finalUpdated)
+            try await projectRepository.update(finalUpdated)
             await MainActor.run {
-                if let index = self.collections.firstIndex(where: { $0.id == collection.id }) {
-                    self.collections[index] = finalUpdated
+                if let index = self.projects.firstIndex(where: { $0.id == project.id }) {
+                    self.projects[index] = finalUpdated
                 }
             }
         } catch {
-            print("Error updating collection: \(error)")
+            print("Error updating project: \(error)")
         }
     }
 
-    func deleteCollection(_ collection: Collection) async {
+    func deleteProject(_ project: Project) async {
         do {
-            try await collectionRepository.delete(collection.id)
+            try await projectRepository.delete(project.id)
             await MainActor.run {
-                self.collections.removeAll { $0.id == collection.id }
-                self.collectionAssignments.removeAll { $0.collectionId == collection.id }
+                self.projects.removeAll { $0.id == project.id }
+                self.projectAssignments.removeAll { $0.projectId == project.id }
             }
         } catch {
-            print("Error deleting collection: \(error)")
+            print("Error deleting project: \(error)")
         }
     }
 
-    // MARK: - Collection Assignment Operations
+    // MARK: - Project Assignment Operations
 
-    func addToCollection(_ item: LibraryItem, collection: Collection) async {
-        guard !collectionAssignments.contains(where: {
-            $0.collectionId == collection.id && $0.itemId == item.id
+    @discardableResult
+    func addToProject(_ item: LibraryItem, project: Project) async -> Bool {
+        guard !projectAssignments.contains(where: {
+            $0.projectId == project.id && $0.itemId == item.id
         }) else {
-            return
+            return true
         }
 
-        let assignment = CollectionAssignment(
-            collectionId: collection.id,
+        let assignment = ProjectAssignment(
+            projectId: project.id,
             itemId: item.id,
             itemType: item.itemType,
             createdAt: Date()
         )
 
         do {
-            try await collectionRepository.createAssignment(assignment)
+            try await projectRepository.createAssignment(assignment)
             await MainActor.run {
-                self.collectionAssignments.append(assignment)
+                self.projectAssignments.append(assignment)
             }
+            return true
         } catch {
-            print("Error adding to collection: \(error)")
+            print("Error adding to project: \(error)")
+            return false
         }
     }
 
-    func addItems(_ items: [LibraryItem], to collection: Collection) async {
+    @discardableResult
+    func addItems(_ items: [LibraryItem], to project: Project) async -> Bool {
+        var didSucceed = true
         for item in items {
-            await addToCollection(item, collection: collection)
+            didSucceed = await addToProject(item, project: project) && didSucceed
         }
+        return didSucceed
     }
 
-    func removeFromCollection(_ item: LibraryItem, collection: Collection) async {
+    @discardableResult
+    func removeFromProject(_ item: LibraryItem, project: Project) async -> Bool {
         do {
-            try await collectionRepository.deleteAssignment(
-                collectionId: collection.id,
-                itemId: item.id
+            try await projectRepository.deleteAssignment(
+                projectId: project.id,
+                itemId: item.id,
+                itemType: item.itemType
             )
             await MainActor.run {
-                self.collectionAssignments.removeAll {
-                    $0.collectionId == collection.id && $0.itemId == item.id
+                self.projectAssignments.removeAll {
+                    $0.projectId == project.id && $0.itemId == item.id
                 }
             }
+            return true
         } catch {
-            print("Error removing from collection: \(error)")
+            print("Error removing from project: \(error)")
+            return false
         }
     }
 
-    func removeItems(_ items: [LibraryItem], from collection: Collection) async {
+    @discardableResult
+    func removeItems(_ items: [LibraryItem], from project: Project) async -> Bool {
+        var didSucceed = true
         for item in items {
-            await removeFromCollection(item, collection: collection)
+            didSucceed = await removeFromProject(item, project: project) && didSucceed
         }
+        return didSucceed
     }
 
-    func collectionsContaining(_ item: LibraryItem) -> [Collection] {
-        let collectionIds = Set(
-            collectionAssignments
+    func projectsContaining(_ item: LibraryItem) -> [Project] {
+        let projectIds = Set(
+            projectAssignments
                 .filter { $0.itemId == item.id }
-                .map { $0.collectionId }
+                .map { $0.projectId }
         )
-        return collections.filter { collectionIds.contains($0.id) }
+        return projects.filter { projectIds.contains($0.id) }
     }
 
-    func itemsInCollection(_ collection: Collection) -> [LibraryItem] {
-        orderedItemsInCollection(collection)
+    func itemsInProject(_ project: Project) -> [LibraryItem] {
+        orderedItemsInProject(project)
     }
 
-    func itemCount(for collection: Collection) -> (total: Int, lyrics: Int, recordings: Int) {
-        let assignments = collectionAssignments.filter { $0.collectionId == collection.id }
+    func itemCount(for project: Project) -> (total: Int, lyrics: Int, recordings: Int) {
+        let assignments = projectAssignments.filter { $0.projectId == project.id }
         let lyricCount = assignments.filter { $0.itemType == .lyric }.count
         let recordingCount = assignments.filter { $0.itemType == .recording }.count
         return (assignments.count, lyricCount, recordingCount)
     }
 
-    func assignment(for item: LibraryItem, in collection: Collection) -> CollectionAssignment? {
-        collectionAssignments.first {
-            $0.collectionId == collection.id && $0.itemId == item.id
+    func assignment(for item: LibraryItem, in project: Project) -> ProjectAssignment? {
+        projectAssignments.first {
+            $0.projectId == project.id && $0.itemId == item.id
         }
     }
 
-    func orderedItemsInCollection(_ collection: Collection) -> [LibraryItem] {
+    func orderedItemsInProject(_ project: Project) -> [LibraryItem] {
         let itemsById = Dictionary(uniqueKeysWithValues: allLibraryItems.map { ($0.id, $0) })
 
-        return collectionAssignments
-            .filter { $0.collectionId == collection.id }
+        return projectAssignments
+            .filter { $0.projectId == project.id }
             .sorted { $0.createdAt < $1.createdAt }
             .compactMap { itemsById[$0.itemId] }
     }
 
-    func reorderItems(in collection: Collection, toMatch orderedItems: [LibraryItem]) async {
-        let existingAssignments = collectionAssignments.filter { $0.collectionId == collection.id }
+    func reorderItems(in project: Project, toMatch orderedItems: [LibraryItem]) async {
+        let existingAssignments = projectAssignments.filter { $0.projectId == project.id }
         let assignmentsByItemId = Dictionary(uniqueKeysWithValues: existingAssignments.map { ($0.itemId, $0) })
         let calendar = Calendar(identifier: .gregorian)
         let baseDate = Date()
@@ -656,25 +761,26 @@ final class AppState {
             guard let assignment = assignmentsByItemId[item.id] else { continue }
 
             do {
-                try await collectionRepository.deleteAssignment(
-                    collectionId: collection.id,
-                    itemId: item.id
+                try await projectRepository.deleteAssignment(
+                    projectId: project.id,
+                    itemId: item.id,
+                    itemType: item.itemType
                 )
 
-                let reorderedAssignment = CollectionAssignment(
-                    collectionId: assignment.collectionId,
+                let reorderedAssignment = ProjectAssignment(
+                    projectId: assignment.projectId,
                     itemId: assignment.itemId,
                     itemType: assignment.itemType,
                     createdAt: calendar.date(byAdding: .second, value: index, to: baseDate) ?? baseDate
                 )
 
-                try await collectionRepository.createAssignment(reorderedAssignment)
+                try await projectRepository.createAssignment(reorderedAssignment)
             } catch {
-                print("Error reordering collection item: \(error)")
+                print("Error reordering project item: \(error)")
             }
         }
 
-        await loadCollectionAssignments()
+        await loadProjectAssignments()
     }
 
     private func sortLibraryItems(_ items: [LibraryItem]) -> [LibraryItem] {
@@ -721,6 +827,107 @@ final class AppState {
             copyNumber += 1
         }
         return "\(baseTitle) Copy \(copyNumber)"
+    }
+
+    private func importSharedLyric(_ item: PendingSharedImport) async throws -> LibraryItem {
+        let body = try String(contentsOf: item.fileURL, encoding: .utf8)
+        let title = importedTitle(for: item, fallback: "Imported Note")
+
+        let file = LyricFile(
+            id: UUID().uuidString,
+            title: title,
+            body: body,
+            createdAt: Date(),
+            updatedAt: Date(),
+            sectionTypes: [:]
+        )
+
+        try await lyricRepository.create(file)
+        await MainActor.run {
+            lyricFiles.insert(file, at: 0)
+        }
+        return .lyric(file)
+    }
+
+    private func importSharedRecording(_ item: PendingSharedImport) async throws -> LibraryItem {
+        guard let userId = await authService.getCurrentUserId() else {
+            throw RepositoryError.notAuthenticated
+        }
+
+        let recordingId = UUID().uuidString
+        let storagePath = try await recordingStorageService.uploadRecording(
+            from: item.fileURL,
+            recordingId: recordingId,
+            userId: userId,
+            preferredFileExtension: item.fileURL.pathExtension,
+            contentType: itemContentType(for: item)
+        )
+
+        let recording = Recording(
+            id: recordingId,
+            title: importedTitle(for: item, fallback: "Imported Recording"),
+            createdAt: Date(),
+            updatedAt: Date(),
+            durationMs: await durationMilliseconds(for: item.fileURL),
+            uri: storagePath
+        )
+
+        try await recordingRepository.create(recording)
+        await MainActor.run {
+            recordings.insert(recording, at: 0)
+        }
+        return .recording(recording)
+    }
+
+    private func importedTitle(for item: PendingSharedImport, fallback: String) -> String {
+        let preferredTitle = item.title?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let preferredTitle, !preferredTitle.isEmpty {
+            return preferredTitle
+        }
+
+        let originalFilename = item.originalFilename?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let originalFilename, !originalFilename.isEmpty {
+            return URL(fileURLWithPath: originalFilename)
+                .deletingPathExtension()
+                .lastPathComponent
+        }
+
+        let filename = item.fileURL.deletingPathExtension().lastPathComponent
+        return filename.isEmpty ? fallback : filename
+    }
+
+    private func itemContentType(for item: PendingSharedImport) -> String? {
+        if let typeIdentifier = item.typeIdentifier,
+           let type = UTType(typeIdentifier),
+           let mimeType = type.preferredMIMEType {
+            return mimeType
+        }
+
+        guard
+            !item.fileURL.pathExtension.isEmpty,
+            let type = UTType(filenameExtension: item.fileURL.pathExtension)
+        else {
+            return nil
+        }
+
+        return type.preferredMIMEType
+    }
+
+    private func durationMilliseconds(for fileURL: URL) async -> Int {
+        let asset = AVURLAsset(url: fileURL)
+        let duration: CMTime
+        do {
+            duration = try await asset.load(.duration)
+        } catch {
+            return 0
+        }
+
+        let seconds = CMTimeGetSeconds(duration)
+        guard seconds.isFinite, !seconds.isNaN else {
+            return 0
+        }
+
+        return max(Int(seconds * 1000), 0)
     }
 
     private func mutateMetadata(for items: [LibraryItem], update: (inout LibraryItemMetadata) -> Void) {

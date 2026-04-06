@@ -32,7 +32,7 @@ enum LibraryItem: Identifiable, Equatable, Hashable, Sendable {
         }
     }
 
-    var itemType: CollectionItemType {
+    var itemType: ProjectItemType {
         switch self {
         case .lyric: return .lyric
         case .recording: return .recording

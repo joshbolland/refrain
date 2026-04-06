@@ -1,7 +1,7 @@
 import SwiftUI
 
-struct CollectionsSheet: View {
-    private enum CollectionSortOption: String, CaseIterable, Identifiable {
+struct ProjectsSheet: View {
+    private enum ProjectSortOption: String, CaseIterable, Identifiable {
         case recentlyUpdated
         case title
         case itemCount
@@ -36,23 +36,23 @@ struct CollectionsSheet: View {
 
     let item: LibraryItem
 
-    @State private var showNewCollectionSheet = false
-    @State private var sortOption: CollectionSortOption = .recentlyUpdated
+    @State private var showNewProjectSheet = false
+    @State private var sortOption: ProjectSortOption = .recentlyUpdated
 
-    private var assignedCollectionIds: Set<String> {
-        Set(appState.collectionsContaining(item).map { $0.id })
+    private var assignedProjectIds: Set<String> {
+        Set(appState.projectsContaining(item).map { $0.id })
     }
 
-    private var sortedCollections: [Collection] {
+    private var sortedProjects: [Project] {
         switch sortOption {
         case .recentlyUpdated:
-            return appState.collections.sorted { $0.updatedAt > $1.updatedAt }
+            return appState.projects.sorted { $0.updatedAt > $1.updatedAt }
         case .title:
-            return appState.collections.sorted {
+            return appState.projects.sorted {
                 $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
             }
         case .itemCount:
-            return appState.collections.sorted {
+            return appState.projects.sorted {
                 let lhs = appState.itemCount(for: $0).total
                 let rhs = appState.itemCount(for: $1).total
                 if lhs == rhs {
@@ -67,7 +67,7 @@ struct CollectionsSheet: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Add to Collection")
+                    Text("Add to Project")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(Theme.ink)
 
@@ -81,7 +81,7 @@ struct CollectionsSheet: View {
 
                 Menu {
                     Picker("Sort", selection: $sortOption) {
-                        ForEach(CollectionSortOption.allCases) { option in
+                        ForEach(ProjectSortOption.allCases) { option in
                             Label(option.label, systemImage: option.systemImage)
                                 .tag(option)
                         }
@@ -102,9 +102,9 @@ struct CollectionsSheet: View {
                 .foregroundStyle(Theme.muted)
             }
 
-            if appState.collections.isEmpty {
+            if appState.projects.isEmpty {
                 VStack(spacing: 10) {
-                    Text("No collections")
+                    Text("No projects")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(Theme.ink)
 
@@ -113,9 +113,9 @@ struct CollectionsSheet: View {
                         .foregroundStyle(Theme.muted.opacity(0.8))
 
                     Button {
-                        showNewCollectionSheet = true
+                        showNewProjectSheet = true
                     } label: {
-                        Text("Create Collection")
+                        Text("Create Project")
                             .frame(maxWidth: .infinity)
                     }
                     .secondaryButtonStyle()
@@ -129,17 +129,17 @@ struct CollectionsSheet: View {
             } else {
                 ScrollView {
                     VStack(spacing: 10) {
-                        ForEach(sortedCollections) { collection in
-                            CollectionToggleRow(
-                                collection: collection,
-                                counts: appState.itemCount(for: collection),
-                                isSelected: assignedCollectionIds.contains(collection.id),
+                        ForEach(sortedProjects) { project in
+                            ProjectToggleRow(
+                                project: project,
+                                counts: appState.itemCount(for: project),
+                                isSelected: assignedProjectIds.contains(project.id),
                                 onToggle: { isSelected in
                                     Task {
                                         if isSelected {
-                                            await appState.addToCollection(item, collection: collection)
+                                            await appState.addToProject(item, project: project)
                                         } else {
-                                            await appState.removeFromCollection(item, collection: collection)
+                                            await appState.removeFromProject(item, project: project)
                                         }
                                     }
                                 }
@@ -150,9 +150,9 @@ struct CollectionsSheet: View {
             }
 
             Button {
-                showNewCollectionSheet = true
+                showNewProjectSheet = true
             } label: {
-                Text("New Collection")
+                Text("New Project")
                     .frame(maxWidth: .infinity)
             }
             .primaryButtonStyle()
@@ -162,10 +162,10 @@ struct CollectionsSheet: View {
         .background(Theme.paper)
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
-        .sheet(isPresented: $showNewCollectionSheet) {
-            NewCollectionSheet { collection in
+        .sheet(isPresented: $showNewProjectSheet) {
+            NewProjectSheet { project in
                 Task {
-                    await appState.addToCollection(item, collection: collection)
+                    await appState.addToProject(item, project: project)
                     await MainActor.run {
                         dismiss()
                     }
@@ -175,8 +175,8 @@ struct CollectionsSheet: View {
     }
 }
 
-struct CollectionToggleRow: View {
-    let collection: Collection
+struct ProjectToggleRow: View {
+    let project: Project
     let counts: (total: Int, lyrics: Int, recordings: Int)
     let isSelected: Bool
     let onToggle: (Bool) -> Void
@@ -187,11 +187,11 @@ struct CollectionToggleRow: View {
         } label: {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(collection.title)
+                    Text(project.title)
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(Theme.ink)
 
-                    if let description = collection.description?.trimmingCharacters(in: .whitespacesAndNewlines),
+                    if let description = project.description?.trimmingCharacters(in: .whitespacesAndNewlines),
                        !description.isEmpty {
                         Text(description)
                             .font(.system(size: 13))
@@ -231,14 +231,14 @@ struct CollectionToggleRow: View {
     }
 }
 
-#Preview("Collections Sheet Populated") {
-    CollectionsSheet(item: .lyric(AppState.previewLyric()))
+#Preview("Projects Sheet Populated") {
+    ProjectsSheet(item: .lyric(AppState.previewLyric()))
         .environment(AppState.preview())
         .environment(\.isPreview, true)
 }
 
-#Preview("Collections Sheet Empty") {
-    CollectionsSheet(item: .recording(Recording(title: "Voice memo idea")))
+#Preview("Projects Sheet Empty") {
+    ProjectsSheet(item: .recording(Recording(title: "Voice memo idea")))
         .environment(AppState.preview(populated: false))
         .environment(\.isPreview, true)
 }

@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-struct CollectionDetailView: View {
+struct ProjectDetailView: View {
     private enum ItemSortOption: String, CaseIterable, Identifiable {
         case recentlyUpdated
         case oldestUpdated
@@ -27,26 +27,35 @@ struct CollectionDetailView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
 
-    let collection: Collection
+    let project: Project
 
     @State private var isEditingTitle = false
     @State private var editedTitle: String
     @State private var selectedItem: LibraryItem?
     @State private var showManageItemsSheet = false
     @State private var showReorderSheet = false
-    @State private var sortOption: ItemSortOption = .recentlyUpdated
+    @AppStorage private var storedSortOptionRawValue: String
 
-    init(collection: Collection) {
-        self.collection = collection
-        self._editedTitle = State(initialValue: collection.title)
+    init(project: Project) {
+        self.project = project
+        self._editedTitle = State(initialValue: project.title)
+        self._storedSortOptionRawValue = AppStorage(
+            wrappedValue: ItemSortOption.recentlyUpdated.rawValue,
+            "refrain.project.\(project.id).itemSortOption"
+        )
     }
 
-    private var currentCollection: Collection {
-        appState.collections.first(where: { $0.id == collection.id }) ?? collection
+    private var currentProject: Project {
+        appState.projects.first(where: { $0.id == project.id }) ?? project
     }
 
     private var manualItems: [LibraryItem] {
-        appState.orderedItemsInCollection(currentCollection)
+        appState.orderedItemsInProject(currentProject)
+    }
+
+    private var sortOption: ItemSortOption {
+        get { ItemSortOption(rawValue: storedSortOptionRawValue) ?? .recentlyUpdated }
+        nonmutating set { storedSortOptionRawValue = newValue.rawValue }
     }
 
     private var items: [LibraryItem] {
@@ -69,8 +78,8 @@ struct CollectionDetailView: View {
         return "\(count) \(count == 1 ? "item" : "items")"
     }
 
-    private var collectionDescription: String? {
-        let description = currentCollection.description?.trimmingCharacters(in: .whitespacesAndNewlines)
+    private var projectDescription: String? {
+        let description = currentProject.description?.trimmingCharacters(in: .whitespacesAndNewlines)
         return description?.isEmpty == false ? description : nil
     }
 
@@ -78,8 +87,8 @@ struct CollectionDetailView: View {
         Dictionary(uniqueKeysWithValues: items.map { ($0.id, appState.metadata(for: $0)) })
     }
 
-    private var collectionCountByItemID: [String: Int] {
-        Dictionary(uniqueKeysWithValues: items.map { ($0.id, appState.collectionsContaining($0).count) })
+    private var projectCountByItemID: [String: Int] {
+        Dictionary(uniqueKeysWithValues: items.map { ($0.id, appState.projectsContaining($0).count) })
     }
 
     var body: some View {
@@ -100,7 +109,7 @@ struct CollectionDetailView: View {
                             LazyVStack(spacing: 0) {
                                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                                     let metadata = rowMetadataByItemID[item.id] ?? LibraryItemMetadata()
-                                    let collectionCount = collectionCountByItemID[item.id] ?? 0
+                                    let collectionCount = projectCountByItemID[item.id] ?? 0
 
                                     LibraryItemRow(
                                         item: item,
@@ -159,15 +168,15 @@ struct CollectionDetailView: View {
             appState.isTabBarHidden = false
         }
         .sheet(isPresented: $showManageItemsSheet) {
-            CollectionItemSelectionSheet(collection: currentCollection)
+            ProjectItemSelectionSheet(project: currentProject)
         }
         .sheet(isPresented: $showReorderSheet) {
-            CollectionReorderSheet(collection: currentCollection)
+            ProjectReorderSheet(project: currentProject)
         }
-        .alert("Rename Collection", isPresented: $isEditingTitle) {
+        .alert("Rename Project", isPresented: $isEditingTitle) {
             TextField("Title", text: $editedTitle)
             Button("Cancel", role: .cancel) {
-                editedTitle = currentCollection.title
+                editedTitle = currentProject.title
             }
             Button("Save") {
                 saveTitle()
@@ -180,11 +189,11 @@ struct CollectionDetailView: View {
         Button {
             showManageItemsSheet = true
         } label: {
-            Label("Manage Collection Items", systemImage: "checklist")
+            Label("Manage Project Items", systemImage: "checklist")
         }
 
         Button(role: .destructive) {
-            removeItemFromCurrentCollection(item)
+            removeItemFromCurrentProject(item)
         } label: {
             Label("Remove", systemImage: "folder.badge.minus")
         }
@@ -193,17 +202,9 @@ struct CollectionDetailView: View {
     private func headerView() -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Button {
+                AppBackButton {
                     dismiss()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Theme.ink)
-                        .frame(width: 36, height: 36)
-                        .background(Theme.paper)
-                        .clipShape(Circle())
                 }
-                .buttonStyle(PressableScaleStyle())
 
                 Spacer()
 
@@ -230,11 +231,11 @@ struct CollectionDetailView: View {
 
                     Button(role: .destructive) {
                         Task {
-                            await appState.deleteCollection(currentCollection)
+                            await appState.deleteProject(currentProject)
                             dismiss()
                         }
                     } label: {
-                        Label("Delete Collection", systemImage: "trash")
+                        Label("Delete Project", systemImage: "trash")
                     }
                 } label: {
                     Image(systemName: "ellipsis")
@@ -246,11 +247,11 @@ struct CollectionDetailView: View {
                 }
             }
 
-            Text(currentCollection.title)
+            Text(currentProject.title)
                 .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(Theme.ink)
+                .foregroundStyle(Theme.headerTitle)
 
-            if let description = collectionDescription {
+            if let description = projectDescription {
                 Text(description)
                     .font(.system(size: 15))
                     .foregroundStyle(Theme.muted.opacity(0.88))
@@ -259,17 +260,17 @@ struct CollectionDetailView: View {
 
             Text(subtitle)
                 .font(.system(size: 14))
-                .foregroundStyle(Theme.muted.opacity(0.8))
+                .foregroundStyle(Theme.headerSubtitle)
         }
         .padding(.top, 6)
         .padding(.horizontal, 20)
         .padding(.bottom, 24)
     }
 
-    private func removeItemFromCurrentCollection(_ item: LibraryItem) {
-        let collection = currentCollection
+    private func removeItemFromCurrentProject(_ item: LibraryItem) {
+        let project = currentProject
         Task {
-            await appState.removeFromCollection(item, collection: collection)
+            await appState.removeFromProject(item, project: project)
         }
     }
 
@@ -285,7 +286,13 @@ struct CollectionDetailView: View {
             .buttonStyle(PressableScaleStyle())
 
             Menu {
-                Picker("Sort Items", selection: $sortOption) {
+                Picker(
+                    "Sort Items",
+                    selection: Binding(
+                        get: { sortOption },
+                        set: { sortOption = $0 }
+                    )
+                ) {
                     ForEach(ItemSortOption.allCases) { option in
                         Text(option.label).tag(option)
                     }
@@ -319,7 +326,7 @@ struct CollectionDetailView: View {
 
     private var emptyStateView: some View {
         VStack(spacing: 10) {
-            Text("This collection is empty")
+            Text("This project is empty")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(Theme.ink)
 
@@ -346,32 +353,33 @@ struct CollectionDetailView: View {
 
     private func saveTitle() {
         let trimmedTitle = editedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmedTitle != currentCollection.title, !trimmedTitle.isEmpty else { return }
+        guard trimmedTitle != currentProject.title, !trimmedTitle.isEmpty else { return }
 
-        var updated = currentCollection
+        var updated = currentProject
         updated.title = trimmedTitle
         Task {
-            await appState.updateCollection(updated)
+            await appState.updateProject(updated)
         }
     }
 }
 
-private struct CollectionItemSelectionSheet: View {
+private struct ProjectItemSelectionSheet: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
 
-    let collection: Collection
+    let project: Project
 
     @State private var selectedItemIds: Set<String>
     @State private var isSaving = false
+    @State private var saveErrorMessage: String?
 
-    init(collection: Collection) {
-        self.collection = collection
+    init(project: Project) {
+        self.project = project
         self._selectedItemIds = State(initialValue: [])
     }
 
-    private var currentCollection: Collection {
-        appState.collections.first(where: { $0.id == collection.id }) ?? collection
+    private var currentProject: Project {
+        appState.projects.first(where: { $0.id == project.id }) ?? project
     }
 
     private var libraryItems: [LibraryItem] {
@@ -379,7 +387,7 @@ private struct CollectionItemSelectionSheet: View {
     }
 
     private var currentMembership: Set<String> {
-        Set(appState.itemsInCollection(currentCollection).map(\.id))
+        Set(appState.itemsInProject(currentProject).map(\.id))
     }
 
     private var selectedCountLabel: String {
@@ -441,7 +449,7 @@ private struct CollectionItemSelectionSheet: View {
                     ScrollView {
                         LazyVStack(spacing: 10) {
                             ForEach(libraryItems, id: \.id) { item in
-                                CollectionItemSelectionRow(
+                                ProjectItemSelectionRow(
                                     item: item,
                                     isSelected: selectedItemIds.contains(item.id)
                                 ) {
@@ -472,6 +480,21 @@ private struct CollectionItemSelectionSheet: View {
             .onAppear {
                 selectedItemIds = currentMembership
             }
+            .alert(
+                "Couldn't save changes",
+                isPresented: Binding(
+                    get: { saveErrorMessage != nil },
+                    set: { isPresented in
+                        if !isPresented {
+                            saveErrorMessage = nil
+                        }
+                    }
+                )
+            ) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(saveErrorMessage ?? "Please try again.")
+            }
         }
     }
 
@@ -485,6 +508,7 @@ private struct CollectionItemSelectionSheet: View {
 
     private func saveChanges() async {
         isSaving = true
+        saveErrorMessage = nil
 
         let currentIds = currentMembership
         let itemsById = Dictionary(uniqueKeysWithValues: libraryItems.map { ($0.id, $0) })
@@ -496,16 +520,24 @@ private struct CollectionItemSelectionSheet: View {
             .subtracting(selectedItemIds)
             .compactMap { itemsById[$0] }
 
-        await appState.addItems(itemsToAdd, to: currentCollection)
-        await appState.removeItems(itemsToRemove, from: currentCollection)
+        let addSucceeded = await appState.addItems(itemsToAdd, to: currentProject)
+        let removeSucceeded = await appState.removeItems(itemsToRemove, from: currentProject)
+
+        if addSucceeded && removeSucceeded {
+            await MainActor.run {
+                dismiss()
+            }
+            return
+        }
 
         await MainActor.run {
-            dismiss()
+            isSaving = false
+            saveErrorMessage = "Your project items couldn't be updated. Please try again."
         }
     }
 }
 
-private struct CollectionItemSelectionRow: View {
+private struct ProjectItemSelectionRow: View {
     let item: LibraryItem
     let isSelected: Bool
     let onTap: () -> Void
@@ -549,17 +581,17 @@ private struct CollectionItemSelectionRow: View {
     }
 }
 
-private struct CollectionReorderSheet: View {
+private struct ProjectReorderSheet: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
 
-    let collection: Collection
+    let project: Project
 
     @State private var orderedItems: [LibraryItem] = []
     @State private var isSaving = false
 
-    private var currentCollection: Collection {
-        appState.collections.first(where: { $0.id == collection.id }) ?? collection
+    private var currentProject: Project {
+        appState.projects.first(where: { $0.id == project.id }) ?? project
     }
 
     var body: some View {
@@ -618,7 +650,7 @@ private struct CollectionReorderSheet: View {
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
             .onAppear {
-                orderedItems = appState.orderedItemsInCollection(currentCollection)
+                orderedItems = appState.orderedItemsInProject(currentProject)
             }
         }
     }
@@ -629,7 +661,7 @@ private struct CollectionReorderSheet: View {
 
     private func saveOrder() async {
         isSaving = true
-        await appState.reorderItems(in: currentCollection, toMatch: orderedItems)
+        await appState.reorderItems(in: currentProject, toMatch: orderedItems)
         await MainActor.run {
             dismiss()
         }
@@ -650,25 +682,25 @@ private struct InteractivePopGestureEnabler: UIViewControllerRepresentable {
     }
 }
 
-#Preview("Collection Detail Populated") {
+#Preview("Project Detail Populated") {
     NavigationStack {
-        CollectionDetailView(collection: AppState.previewCollection())
+        ProjectDetailView(project: AppState.previewProject())
     }
     .environment(AppState.preview())
     .environment(\.isPreview, true)
 }
 
-#Preview("Collection Detail Empty") {
+#Preview("Project Detail Empty") {
     let state = AppState.preview()
-    let emptyCollection = Collection(
+    let emptyProject = Project(
         id: "collection-empty",
         title: "Voice Notes",
-        description: "A fresh collection with no items yet"
+        description: "A fresh project with no items yet"
     )
-    state.collections.insert(emptyCollection, at: 0)
+    state.projects.insert(emptyProject, at: 0)
 
     return NavigationStack {
-        CollectionDetailView(collection: emptyCollection)
+        ProjectDetailView(project: emptyProject)
     }
     .environment(state)
     .environment(\.isPreview, true)

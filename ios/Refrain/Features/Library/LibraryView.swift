@@ -6,14 +6,17 @@ struct LibraryView: View {
     @State private var showFilterSheet = false
     @State private var showProfile = false
     @State private var selectedItem: LibraryItem?
-    @State private var collectionSheetItem: LibraryItem?
+    @State private var projectSheetItem: LibraryItem?
     @State private var showManageItemsSheet = false
-    @State private var swipeOpenItemId: String?
     @State private var renamingItem: LibraryItem?
     @State private var renameDraft = ""
 
     private var visibleItems: [LibraryItem] {
         appState.filteredLibraryItems
+    }
+
+    private var hasLibraryItems: Bool {
+        !appState.allLibraryItems.isEmpty
     }
 
     private var headerSubtitle: String {
@@ -26,9 +29,8 @@ struct LibraryView: View {
     }
 
     private var hasActiveFilters: Bool {
-        appState.selectedCollectionFilter != nil ||
-        appState.selectedItemTypeFilter != .all ||
-        appState.archiveFilter != .activeOnly
+        appState.selectedProjectFilter != nil ||
+        appState.selectedItemTypeFilter != .all
     }
 
     private var renameAlertIsPresented: Binding<Bool> {
@@ -52,36 +54,39 @@ struct LibraryView: View {
                     VStack(spacing: 0) {
                         headerView(topInset: proxy.safeAreaInsets.top)
 
-                        ScrollView {
-                            VStack(spacing: 16) {
-                                SearchBar(text: Binding(
-                                    get: { appState.searchQuery },
-                                    set: { appState.searchQuery = $0 }
-                                ), placeholder: "Search ideas")
+                        VStack(spacing: 0) {
+                            if hasLibraryItems {
+                                VStack(spacing: 16) {
+                                    searchControlsRow
 
-                                controlsView
+                                    if hasActiveFilters {
+                                        managementSummary
+                                    }
 
-                                if hasActiveFilters {
-                                    managementSummary
+                                    if let feedback = appState.sharedImportFeedback {
+                                        sharedImportBanner(feedback)
+                                    }
                                 }
-
-                                if visibleItems.isEmpty {
-                                    emptyStateView
-                                } else {
-                                    listView
-                                }
+                                .padding(.top, 22)
+                                .padding(.horizontal, 20)
+                                .padding(.bottom, 16)
                             }
-                            .padding(.top, 22)
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 120)
-                            .frame(maxWidth: .infinity)
+
+                            ScrollView {
+                                VStack(spacing: 16) {
+                                    if visibleItems.isEmpty {
+                                        emptyStateView
+                                    } else {
+                                        listView
+                                    }
+                                }
+                                .padding(.horizontal, 20)
+                                .padding(.bottom, 120)
+                                .frame(maxWidth: .infinity)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(Theme.paper)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            closeOpenSwipeRow()
-                        }
                         .clipShape(
                             RoundedCorner(
                                 radius: Theme.cornerRadiusSmall,
@@ -89,13 +94,21 @@ struct LibraryView: View {
                             )
                         )
                         .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 6)
-                        .ignoresSafeArea(edges: .bottom)
                     }
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
+            .onChange(of: appState.pendingLibrarySelection) { _, newSelection in
+                guard let newSelection else {
+                    return
+                }
+                selectedItem = newSelection
+                appState.pendingLibrarySelection = nil
+            }
             .sheet(isPresented: $showFilterSheet) {
-                LibraryFilterSheet()
+                LibraryFilterSheet {
+                    showManageItemsSheet = true
+                }
             }
             .sheet(isPresented: $showProfile) {
                 ProfileView()
@@ -103,8 +116,8 @@ struct LibraryView: View {
             .sheet(isPresented: $showManageItemsSheet) {
                 LibraryItemManagementSheet()
             }
-            .sheet(item: $collectionSheetItem) { item in
-                CollectionsSheet(item: item)
+            .sheet(item: $projectSheetItem) { item in
+                ProjectsSheet(item: item)
             }
             .navigationDestination(item: $selectedItem) { item in
                 switch item {
@@ -130,9 +143,6 @@ struct LibraryView: View {
                     }
                 }
             }
-            .onChange(of: appState.searchQuery) {
-                swipeOpenItemId = nil
-            }
         }
     }
 
@@ -141,44 +151,24 @@ struct LibraryView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Library")
                     .font(.system(size: 30, weight: .semibold))
-                    .foregroundStyle(Theme.ink)
+                    .foregroundStyle(Theme.headerTitle)
 
                 Text(headerSubtitle)
                     .font(.system(size: 14))
-                    .foregroundStyle(Theme.muted.opacity(0.8))
+                    .foregroundStyle(Theme.headerSubtitle)
             }
 
             Spacer()
 
-            HStack(spacing: 10) {
-                Menu {
-                    Button {
-                        showManageItemsSheet = true
-                    } label: {
-                        Label("Manage Items", systemImage: "checklist")
-                    }
-
-                    Button {
-                        showFilterSheet = true
-                    } label: {
-                        Label("Filters", systemImage: "line.3.horizontal.decrease.circle")
-                    }
+            HStack(spacing: 12) {
+                Button {
+                    showManageItemsSheet = true
                 } label: {
-                    ZStack(alignment: .topTrailing) {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(Theme.ink)
-                            .frame(width: 36, height: 36)
-                            .background(Theme.paper.opacity(0.92))
-                            .clipShape(Circle())
-
-                        if hasActiveFilters {
-                            Circle()
-                                .fill(Theme.accent)
-                                .frame(width: 8, height: 8)
-                                .offset(x: 2, y: -2)
-                        }
-                    }
+                    Label("Manage", systemImage: "checklist")
+                        .font(.system(size: 12, weight: .semibold))
+                        .textCase(.uppercase)
+                        .tracking(1.2)
+                        .foregroundStyle(Theme.headerTitle)
                 }
                 .buttonStyle(PressableScaleStyle())
 
@@ -187,65 +177,94 @@ struct LibraryView: View {
                 } label: {
                     UserAvatar(user: appState.currentUser)
                 }
-                .buttonStyle(PressableScaleStyle())
             }
+            .buttonStyle(PressableScaleStyle())
         }
         .padding(.top, 6)
         .padding(.horizontal, 20)
         .padding(.bottom, 28)
     }
 
-    private var controlsView: some View {
-        HStack {
-            Spacer()
+    private var searchControlsRow: some View {
+        HStack(spacing: 12) {
+            SearchBar(text: Binding(
+                get: { appState.searchQuery },
+                set: { appState.searchQuery = $0 }
+            ), placeholder: "Search ideas")
+            .frame(maxWidth: .infinity)
 
-            Menu {
-                Picker("Sort Items", selection: Binding(
-                    get: { appState.librarySortOption },
-                    set: { appState.librarySortOption = $0 }
-                )) {
-                    ForEach(LibrarySortOption.allCases) { option in
-                        Text(option.label).tag(option)
-                    }
-                }
+            Button {
+                showFilterSheet = true
             } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "arrow.up.arrow.down.circle")
-                        .font(.system(size: 15, weight: .semibold))
-
-                    Text(appState.librarySortOption.label)
-                        .lineLimit(1)
-
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Theme.muted.opacity(0.8))
-                }
+                Image(systemName: "line.3.horizontal.decrease.circle")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(filterIconTint)
+                    .frame(width: 36, height: 36)
             }
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(Theme.ink)
-            .transaction { transaction in
-                transaction.animation = nil
-            }
+            .buttonStyle(PressableScaleStyle())
         }
+    }
+
+    private var filterIconTint: Color {
+        if hasActiveFilters || appState.librarySortOption != .recentlyUpdated {
+            return Theme.accentPressed
+        }
+        return Theme.muted.opacity(0.75)
     }
 
     private var managementSummary: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                if appState.archiveFilter != .activeOnly {
-                    summaryChip(label: "Show: \(appState.archiveFilter.label)")
-                }
-
                 if appState.selectedItemTypeFilter != .all {
                     summaryChip(label: appState.selectedItemTypeFilter.label)
                 }
 
-                if let collectionID = appState.selectedCollectionFilter,
-                   let collection = appState.collections.first(where: { $0.id == collectionID }) {
-                    summaryChip(label: collection.title)
+                if let projectID = appState.selectedProjectFilter,
+                   let project = appState.projects.first(where: { $0.id == projectID }) {
+                    summaryChip(label: project.title)
                 }
             }
         }
+    }
+
+    private func sharedImportBanner(_ feedback: SharedImportFeedback) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "square.and.arrow.down.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(Theme.accentPressed)
+
+            Text(feedback.message)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Theme.ink)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            if let latestItem = feedback.latestItem {
+                Button("Open") {
+                    selectedItem = latestItem
+                    appState.sharedImportFeedback = nil
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Theme.accentPressed)
+            }
+
+            Button {
+                appState.sharedImportFeedback = nil
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Theme.muted)
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(Color(hex: "EEF4FF"))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color(hex: "C7D7FF"), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private func summaryChip(label: String) -> some View {
@@ -261,10 +280,18 @@ struct LibraryView: View {
     }
 
     private var emptyStateView: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 14) {
+            Image("RefrainBird")
+                .resizable()
+                .scaledToFit()
+                .frame(height: 110)
+                .padding(.top, 4)
+                .shadow(color: Color.black.opacity(0.08), radius: 10, x: 0, y: 6)
+
             Text(appState.archiveFilter == .archivedOnly ? "No archived ideas yet." : "This is your first idea.")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(Theme.ink)
+                .multilineTextAlignment(.center)
 
             Text(
                 appState.archiveFilter == .archivedOnly
@@ -273,6 +300,7 @@ struct LibraryView: View {
             )
             .font(.system(size: 14))
             .foregroundStyle(Theme.muted.opacity(0.9))
+            .multilineTextAlignment(.center)
 
             if appState.archiveFilter != .archivedOnly {
                 Button {
@@ -310,43 +338,33 @@ struct LibraryView: View {
     private var listView: some View {
         LazyVStack(spacing: 0) {
             ForEach(Array(visibleItems.enumerated()), id: \.element.id) { index, item in
-                SwipeToDeleteRow(
-                    id: item.id,
-                    isOpen: swipeOpenItemId == item.id,
-                    isEnabled: true,
-                    onOpenChange: { isOpen in
-                        swipeOpenItemId = isOpen ? item.id : (swipeOpenItemId == item.id ? nil : swipeOpenItemId)
+                LibraryItemRow(
+                    item: item,
+                    metadata: appState.metadata(for: item),
+                    collectionCount: appState.projectsContaining(item).count,
+                    isSelectionMode: false,
+                    isSelected: false,
+                    onSelect: {
+                        selectedItem = item
                     },
-                    onDelete: {
-                        swipeOpenItemId = nil
+                    showsPressFeedback: true
+                )
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) {
                         Task { await deleteItem(item) }
+                    } label: {
+                        Label("Delete", systemImage: "trash")
                     }
-                ) {
-                    LibraryItemRow(
-                        item: item,
-                        metadata: appState.metadata(for: item),
-                        collectionCount: appState.collectionsContaining(item).count,
-                        isSelectionMode: false,
-                        isSelected: false,
-                        onSelect: {
-                            if swipeOpenItemId == item.id {
-                                withAnimation(.spring(response: 0.24, dampingFraction: 0.9)) {
-                                    swipeOpenItemId = nil
-                                }
-                                return
-                            }
-                            selectedItem = item
-                        },
-                        showsPressFeedback: true
-                    )
+                }
+                .overlay(alignment: .bottom) {
+                    if index < visibleItems.count - 1 {
+                        Rectangle()
+                            .fill(Theme.divider)
+                            .frame(height: 1)
+                    }
                 }
                 .contextMenu {
                     contextMenuContent(for: item)
-                }
-
-                if index < visibleItems.count - 1 {
-                    Divider()
-                        .background(Theme.divider)
                 }
             }
         }
@@ -393,9 +411,9 @@ struct LibraryView: View {
         }
 
         Button {
-            collectionSheetItem = item
+            projectSheetItem = item
         } label: {
-            Label("Add to Collection", systemImage: "folder.badge.plus")
+            Label("Add to Project", systemImage: "folder.badge.plus")
         }
 
         Divider()
@@ -419,122 +437,6 @@ struct LibraryView: View {
         case .recording(let recording):
             await appState.deleteRecording(recording)
         }
-    }
-
-    private func closeOpenSwipeRow() {
-        guard swipeOpenItemId != nil else { return }
-        withAnimation(.spring(response: 0.24, dampingFraction: 0.9)) {
-            swipeOpenItemId = nil
-        }
-    }
-}
-
-private struct SwipeToDeleteRow<Content: View>: View {
-    let id: String
-    let isOpen: Bool
-    let isEnabled: Bool
-    let onOpenChange: (Bool) -> Void
-    let onDelete: () -> Void
-    let content: Content
-
-    @State private var settledOffset: CGFloat = 0
-    @GestureState private var dragOffset: CGFloat = 0
-
-    private let actionWidth: CGFloat = 96
-    private let openThreshold: CGFloat = 52
-
-    init(
-        id: String,
-        isOpen: Bool,
-        isEnabled: Bool,
-        onOpenChange: @escaping (Bool) -> Void,
-        onDelete: @escaping () -> Void,
-        @ViewBuilder content: () -> Content
-    ) {
-        self.id = id
-        self.isOpen = isOpen
-        self.isEnabled = isEnabled
-        self.onOpenChange = onOpenChange
-        self.onDelete = onDelete
-        self.content = content()
-    }
-
-    var body: some View {
-        Group {
-            if isEnabled {
-                ZStack(alignment: .trailing) {
-                    deleteAction
-
-                    content
-                        .background(Theme.paper)
-                        .contentShape(Rectangle())
-                        .offset(x: currentOffset)
-                }
-                .highPriorityGesture(dragGesture)
-            } else {
-                content
-                    .background(Theme.paper)
-                    .contentShape(Rectangle())
-            }
-        }
-        .onChange(of: isOpen) { _, open in
-            guard isEnabled else {
-                settledOffset = 0
-                return
-            }
-
-            withAnimation(.spring(response: 0.24, dampingFraction: 0.9)) {
-                settledOffset = open ? -actionWidth : 0
-            }
-        }
-    }
-
-    private var currentOffset: CGFloat {
-        max(-actionWidth, min(0, settledOffset + dragOffset))
-    }
-
-    private var deleteAction: some View {
-        Button(role: .destructive) {
-            withAnimation(.spring(response: 0.22, dampingFraction: 0.92)) {
-                settledOffset = 0
-            }
-            onOpenChange(false)
-            onDelete()
-        } label: {
-            VStack(spacing: 6) {
-                Image(systemName: "trash")
-                    .font(.system(size: 15, weight: .semibold))
-
-                Text("Delete")
-                    .font(.system(size: 12, weight: .semibold))
-            }
-            .foregroundStyle(.white)
-            .frame(width: actionWidth)
-            .frame(maxHeight: .infinity)
-            .background(Theme.destructive)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var dragGesture: some Gesture {
-        DragGesture(minimumDistance: 10, coordinateSpace: .local)
-            .updating($dragOffset) { value, state, _ in
-                guard abs(value.translation.width) > abs(value.translation.height) else { return }
-                let translation = value.translation.width
-                if settledOffset == 0, translation > 0 { return }
-                state = translation
-            }
-            .onEnded { value in
-                guard abs(value.translation.width) > abs(value.translation.height) else { return }
-
-                let proposedOffset = max(-actionWidth, min(0, settledOffset + value.translation.width))
-                let shouldOpen = proposedOffset <= -openThreshold
-
-                withAnimation(.spring(response: 0.24, dampingFraction: 0.9)) {
-                    settledOffset = shouldOpen ? -actionWidth : 0
-                }
-                onOpenChange(shouldOpen)
-            }
     }
 }
 
@@ -659,7 +561,7 @@ struct LibraryItemRow: View {
 
             if collectionCount > 0 {
                 metadataChip(
-                    label: collectionCount == 1 ? "1 Collection" : "\(collectionCount) Collections",
+                    label: collectionCount == 1 ? "1 Project" : "\(collectionCount) Projects",
                     systemImage: "folder.fill",
                     tint: Theme.accentPressed
                 )
@@ -813,7 +715,7 @@ private struct LibraryItemManagementSheet: View {
                                 LibraryItemRow(
                                     item: item,
                                     metadata: appState.metadata(for: item),
-                                    collectionCount: appState.collectionsContaining(item).count,
+                                    collectionCount: appState.projectsContaining(item).count,
                                     isSelectionMode: true,
                                     isSelected: selectedItemIds.contains(item.id),
                                     onSelect: {

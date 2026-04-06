@@ -6,6 +6,12 @@ struct LoginView: View {
         case signUp
     }
 
+    private enum Field: Hashable {
+        case email
+        case password
+        case confirmPassword
+    }
+
     @State private var mode: AuthMode = .signIn
     @State private var email = ""
     @State private var password = ""
@@ -13,6 +19,7 @@ struct LoginView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showSuccess = false
+    @FocusState private var focusedField: Field?
 
     @Environment(\.webAuthenticationSession) private var webAuthenticationSession
 
@@ -30,19 +37,30 @@ struct LoginView: View {
         !email.isEmpty && !password.isEmpty && passwordsMatch && password.count >= 8
     }
 
+    private var headerSpacing: CGFloat {
+        mode == .signUp ? 6 : 10
+    }
+
     var body: some View {
-        ZStack {
-            AuthBackground()
+        GeometryReader { geometry in
+            ZStack {
+                AuthBackground()
 
-            VStack(spacing: 0) {
-                Spacer()
+                VStack(spacing: 0) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        headerView(heroHeight: heroHeight(for: geometry))
+                        cardView
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, topPadding(for: geometry))
+                    .padding(.bottom, 20)
 
-                VStack(alignment: .leading, spacing: 16) {
-                    headerView
-                    cardView
+                    Spacer(minLength: 0)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 20)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                focusedField = nil
             }
         }
         .alert("Account Created", isPresented: $showSuccess) {
@@ -56,89 +74,150 @@ struct LoginView: View {
         }
     }
 
-    private var headerView: some View {
-        VStack(alignment: .leading, spacing: 8) {
+    private func headerView(heroHeight: CGFloat) -> some View {
+        let clampedHeroHeight = heroHeight.isFinite ? max(heroHeight, 1) : 1
+        return VStack(spacing: headerSpacing) {
+            Image("RefrainBird")
+                .resizable()
+                .scaledToFit()
+                .frame(height: clampedHeroHeight * 0.94)
+                .frame(
+                    maxWidth: .infinity,
+                    minHeight: clampedHeroHeight,
+                    maxHeight: clampedHeroHeight,
+                    alignment: .top
+                )
+                .offset(x: 12)
+                .padding(.bottom, 10)
+
             Text(mode == .signIn ? "Welcome back" : "Create account")
                 .font(.system(size: 11, weight: .semibold))
                 .textCase(.uppercase)
                 .tracking(2)
                 .foregroundStyle(Color(hex: "4B5563"))
+                .frame(maxWidth: .infinity)
 
             Text(mode == .signIn ? "Sign in to Refrain" : "Join Refrain")
                 .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(Theme.ink)
+                .foregroundStyle(Theme.headerTitle)
+                .frame(maxWidth: .infinity)
 
             Text(mode == .signIn
-                 ? "Sign in with your password or continue with a provider to sync your lyrics across devices."
-                 : "Use your email and a password to start saving your lyrics.")
+                 ? "Sign in to keep your lyrics in sync."
+                 : "Create an account to save your lyrics.")
                 .font(.system(size: 14))
-                .foregroundStyle(Color(hex: "3F3F46"))
+                .foregroundStyle(Theme.headerSubtitle)
+                .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
 
+    private func heroHeight(for geometry: GeometryProxy) -> CGFloat {
+        let availableHeight = max(
+            geometry.size.height - geometry.safeAreaInsets.top - geometry.safeAreaInsets.bottom,
+            0
+        )
+
+        if mode == .signUp {
+            return min(availableHeight * 0.2, 180)
+        }
+
+        return min(availableHeight * 0.3, 240)
+    }
+
+    private func topPadding(for geometry: GeometryProxy) -> CGFloat {
+        let safeAreaTop = geometry.safeAreaInsets.top
+        return safeAreaTop > 0 ? safeAreaTop : 16
+    }
+
     private var cardView: some View {
         AuthCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Email")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Theme.ink)
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Email")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Theme.ink)
 
-                TextField(
-                    "",
-                    text: $email,
-                    prompt: Text("you@example.com").foregroundStyle(Theme.placeholder)
-                )
-                .textFieldStyle(.plain)
-                .textContentType(.emailAddress)
-                .keyboardType(.emailAddress)
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-                .tint(Theme.accent)
-                .foregroundStyle(Theme.ink)
-                .authFieldStyle()
-
-                Text("Password")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Theme.ink)
-
-                SecureField(
-                    "",
-                    text: $password,
-                    prompt: Text("••••••••").foregroundStyle(Theme.placeholder)
-                )
-                .textFieldStyle(.plain)
-                .textContentType(mode == .signIn ? .password : .newPassword)
-                .tint(Theme.accent)
-                .foregroundStyle(Theme.ink)
-                .authFieldStyle()
-
-                if mode == .signUp {
-                    Text("Confirm password")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Theme.ink)
-
-                    SecureField(
-                        "",
-                        text: $confirmPassword,
-                        prompt: Text("••••••••").foregroundStyle(Theme.placeholder)
-                    )
-                    .textFieldStyle(.plain)
-                    .textContentType(.newPassword)
-                    .tint(Theme.accent)
-                    .foregroundStyle(Theme.ink)
-                    .authFieldStyle()
-
-                    if password.count > 0 && password.count < 8 {
-                        Text("Password must be at least 8 characters")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.orange)
+                        TextField(
+                            "",
+                            text: $email,
+                            prompt: Text("you@example.com").foregroundColor(.gray)
+                        )
+                        .textFieldStyle(.plain)
+                        .textContentType(.emailAddress)
+                        .keyboardType(.emailAddress)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .foregroundColor(Theme.ink)
+                        .focused($focusedField, equals: .email)
+                        .submitLabel(.next)
+                        .onSubmit {
+                            focusedField = .password
+                        }
+                        .authFieldStyle()
                     }
 
-                    if !confirmPassword.isEmpty && !passwordsMatch {
-                        Text("Passwords do not match")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.red)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Password")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Theme.ink)
+
+                        SecureField(
+                            "",
+                            text: $password,
+                            prompt: Text("••••••••").foregroundStyle(Theme.placeholder)
+                        )
+                        .textFieldStyle(.plain)
+                        .textContentType(mode == .signIn ? .password : .newPassword)
+                        .tint(Theme.accent)
+                        .foregroundStyle(Theme.ink)
+                        .focused($focusedField, equals: .password)
+                        .submitLabel(mode == .signIn ? .done : .next)
+                        .onSubmit {
+                            if mode == .signIn {
+                                focusedField = nil
+                            } else {
+                                focusedField = .confirmPassword
+                            }
+                        }
+                        .authFieldStyle()
+                    }
+
+                    if mode == .signUp {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Confirm password")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(Theme.ink)
+
+                            SecureField(
+                                "",
+                                text: $confirmPassword,
+                                prompt: Text("••••••••").foregroundStyle(Theme.placeholder)
+                            )
+                            .textFieldStyle(.plain)
+                            .textContentType(.newPassword)
+                            .tint(Theme.accent)
+                            .foregroundStyle(Theme.ink)
+                            .focused($focusedField, equals: .confirmPassword)
+                            .submitLabel(.done)
+                            .onSubmit {
+                                focusedField = nil
+                            }
+                            .authFieldStyle()
+                        }
+
+                        if password.count > 0 && password.count < 8 {
+                            Text("Password must be at least 8 characters")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.orange)
+                        }
+
+                        if !confirmPassword.isEmpty && !passwordsMatch {
+                            Text("Passwords do not match")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.red)
+                        }
                     }
                 }
 
@@ -197,13 +276,21 @@ struct LoginView: View {
                         .fill(Color.white.opacity(0.7))
                         .frame(height: 1)
                 }
+                .padding(.top, 4)
 
                 HStack(spacing: 10) {
                     Button {
                         Task { await signInWithGoogle() }
                     } label: {
-                        Text("Google")
-                            .frame(maxWidth: .infinity)
+                        authProviderLabel(
+                            title: "Google",
+                            icon: {
+                                Image("GoogleG")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 18, height: 18)
+                            }
+                        )
                     }
                     .secondaryButtonStyle()
                     .buttonStyle(PressableScaleStyle())
@@ -212,8 +299,15 @@ struct LoginView: View {
                     Button {
                         Task { await signInWithApple() }
                     } label: {
-                        Text("Apple")
-                            .frame(maxWidth: .infinity)
+                        authProviderLabel(
+                            title: "Apple",
+                            icon: {
+                                Image(systemName: "applelogo")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(Theme.ink)
+                                    .frame(width: 18, height: 18)
+                            }
+                        )
                     }
                     .secondaryButtonStyle()
                     .buttonStyle(PressableScaleStyle())
@@ -238,6 +332,18 @@ struct LoginView: View {
             return mode == .signIn ? "Signing in..." : "Creating account..."
         }
         return mode == .signIn ? "Sign in" : "Create account"
+    }
+
+    private func authProviderLabel<Icon: View>(
+        title: String,
+        @ViewBuilder icon: () -> Icon
+    ) -> some View {
+        HStack(spacing: 8) {
+            icon()
+
+            Text(title)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func signIn() async {

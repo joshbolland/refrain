@@ -1,5 +1,6 @@
 import Foundation
 import Supabase
+import UniformTypeIdentifiers
 
 final class RecordingStorageService: Sendable {
     static let shared = RecordingStorageService()
@@ -9,17 +10,29 @@ final class RecordingStorageService: Sendable {
 
     private init() {}
 
-    func storagePath(for recordingId: String, userId: String) -> String {
-        "users/\(userId)/\(recordingId).m4a"
+    func storagePath(for recordingId: String, userId: String, fileExtension: String = "m4a") -> String {
+        let normalizedUserId = userId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let sanitizedExtension = fileExtension.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalExtension = sanitizedExtension.isEmpty ? "m4a" : sanitizedExtension
+        return "users/\(normalizedUserId)/\(recordingId).\(finalExtension)"
     }
 
     func uploadRecording(
         from localFileURL: URL,
         recordingId: String,
-        userId: String
+        userId: String,
+        preferredFileExtension: String? = nil,
+        contentType: String? = nil
     ) async throws -> String {
-        let path = storagePath(for: recordingId, userId: userId)
+        let pathExtension = preferredFileExtension?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalExtension = pathExtension?.isEmpty == false ? pathExtension! : localFileURL.pathExtension
+        let path = storagePath(
+            for: recordingId,
+            userId: userId,
+            fileExtension: finalExtension.isEmpty ? "m4a" : finalExtension
+        )
         let data = try Data(contentsOf: localFileURL)
+        let resolvedContentType = normalizedContentType(contentType, for: localFileURL)
 
         try await supabase.storage
             .from(bucketName)
@@ -28,8 +41,8 @@ final class RecordingStorageService: Sendable {
                 data: data,
                 options: FileOptions(
                     cacheControl: "3600",
-                    contentType: "audio/m4a",
-                    upsert: true
+                    contentType: resolvedContentType,
+                    upsert: false
                 )
             )
 
@@ -101,5 +114,40 @@ final class RecordingStorageService: Sendable {
         let cachedURL = cacheURL(for: storagePath)
         guard FileManager.default.fileExists(atPath: cachedURL.path) else { return }
         try FileManager.default.removeItem(at: cachedURL)
+    }
+
+    private func mimeType(for fileURL: URL) -> String {
+        if fileURL.pathExtension.caseInsensitiveCompare("m4a") == .orderedSame {
+            return "audio/mp4"
+        }
+
+        guard
+            !fileURL.pathExtension.isEmpty,
+            let type = UTType(filenameExtension: fileURL.pathExtension),
+            let mimeType = type.preferredMIMEType
+        else {
+            return "audio/mp4"
+        }
+
+        return normalizedMimeType(mimeType)
+    }
+
+    private func normalizedContentType(_ contentType: String?, for fileURL: URL) -> String {
+        if let contentType {
+            return normalizedMimeType(contentType)
+        }
+
+        return mimeType(for: fileURL)
+    }
+
+    private func normalizedMimeType(_ mimeType: String) -> String {
+        switch mimeType.lowercased() {
+        case "audio/x-m4a", "audio/m4a":
+            return "audio/mp4"
+        case "audio/x-wav":
+            return "audio/wav"
+        default:
+            return mimeType.lowercased()
+        }
     }
 }

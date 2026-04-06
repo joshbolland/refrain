@@ -15,6 +15,8 @@ enum Theme {
     static let accentSoft = Color(hex: "EEF0FF")
     static let divider = Color(hex: "E3E5F0")
     static let headerBackground = Color(hex: "E8EBFF")
+    static let headerTitle = Color(hex: "2B3550")
+    static let headerSubtitle = Color(hex: "5E6B8C")
     static let destructive = Color(hex: "E71D36")
     static let placeholder = Color(hex: "9CA3AF")
 
@@ -76,62 +78,7 @@ enum Theme {
     static let editorPaddingTop: CGFloat = 32
     static let editorHorizontalPadding: CGFloat = 16
 
-    static func configureAppearance() {
-        configureSegmentedControlAppearance()
-    }
-
-    private static func configureSegmentedControlAppearance() {
-        let appearance = UISegmentedControl.appearance()
-        let normalBackground = UIImage.segmentImage(
-            color: UIColor(hex: "E8EBFF"),
-            cornerRadius: cornerRadiusSmall
-        )
-        let selectedBackground = UIImage.segmentImage(
-            color: UIColor.white,
-            cornerRadius: cornerRadiusSmall - 2,
-            contentInset: UIEdgeInsets(top: 2, left: 2, bottom: 2, right: 2)
-        )
-        let clearDivider = UIImage.segmentImage(
-            color: .clear,
-            size: CGSize(width: 1, height: 32),
-            cornerRadius: 0
-        )
-
-        appearance.setBackgroundImage(normalBackground, for: .normal, barMetrics: .default)
-        appearance.setBackgroundImage(selectedBackground, for: .selected, barMetrics: .default)
-        appearance.setDividerImage(
-            clearDivider,
-            forLeftSegmentState: .normal,
-            rightSegmentState: .normal,
-            barMetrics: .default
-        )
-        appearance.setDividerImage(
-            clearDivider,
-            forLeftSegmentState: .selected,
-            rightSegmentState: .normal,
-            barMetrics: .default
-        )
-        appearance.setDividerImage(
-            clearDivider,
-            forLeftSegmentState: .normal,
-            rightSegmentState: .selected,
-            barMetrics: .default
-        )
-        appearance.selectedSegmentTintColor = .white
-        appearance.backgroundColor = UIColor(hex: "E8EBFF")
-
-        let normalAttributes: [NSAttributedString.Key: Any] = [
-            .foregroundColor: UIColor(hex: "111827"),
-            .font: UIFont.systemFont(ofSize: 16, weight: .medium)
-        ]
-        let selectedAttributes: [NSAttributedString.Key: Any] = [
-            .foregroundColor: UIColor(hex: "111827"),
-            .font: UIFont.systemFont(ofSize: 16, weight: .semibold)
-        ]
-
-        appearance.setTitleTextAttributes(normalAttributes, for: .normal)
-        appearance.setTitleTextAttributes(selectedAttributes, for: .selected)
-    }
+    static func configureAppearance() {}
 }
 
 // MARK: - View Extensions
@@ -198,32 +145,6 @@ extension UIColor {
         let b = CGFloat(value & 0xFF) / 255.0
 
         self.init(red: r, green: g, blue: b, alpha: alpha)
-    }
-}
-
-extension UIImage {
-    static func segmentImage(
-        color: UIColor,
-        size: CGSize = CGSize(width: 36, height: 32),
-        cornerRadius: CGFloat,
-        contentInset: UIEdgeInsets = .zero
-    ) -> UIImage {
-        let renderer = UIGraphicsImageRenderer(size: size)
-        return renderer.image { context in
-            let rect = CGRect(origin: .zero, size: size).inset(by: contentInset)
-            let path = UIBezierPath(roundedRect: rect, cornerRadius: cornerRadius)
-            color.setFill()
-            path.fill()
-            context.cgContext.setStrokeColor(UIColor.clear.cgColor)
-            context.cgContext.stroke(rect)
-        }.resizableImage(
-            withCapInsets: UIEdgeInsets(
-                top: cornerRadius,
-                left: cornerRadius + 2,
-                bottom: cornerRadius,
-                right: cornerRadius + 2
-            )
-        )
     }
 }
 

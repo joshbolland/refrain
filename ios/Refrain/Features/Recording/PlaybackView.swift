@@ -52,18 +52,15 @@ struct PlaybackView: View {
                 }
             }
 
-            // Progress bar
+            // Waveform
             VStack(spacing: 8) {
-                Slider(
-                    value: $viewModel.progress,
-                    in: 0...1,
-                    onEditingChanged: { editing in
-                        if !editing {
-                            viewModel.seek(to: viewModel.progress)
-                        }
-                    }
-                )
-                .tint(Theme.primaryColor)
+                PlaybackWaveformView(
+                    samples: viewModel.waveformSamples,
+                    progress: viewModel.progress,
+                    isReady: viewModel.isReady
+                ) { progress in
+                    viewModel.seek(to: progress)
+                }
 
                 HStack {
                     Text(viewModel.formattedCurrentTime)
@@ -75,6 +72,14 @@ struct PlaybackView: View {
                     Text(viewModel.formattedRemainingTime)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+
+                if let errorMessage = viewModel.errorMessage {
+                    Text(errorMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 4)
                 }
             }
             .padding(.horizontal, 32)
@@ -132,7 +137,7 @@ struct PlaybackView: View {
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $collectionSheetItem) { item in
-            CollectionsSheet(item: item)
+            ProjectsSheet(item: item)
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -140,7 +145,7 @@ struct PlaybackView: View {
                     Button {
                         collectionSheetItem = .recording(recording)
                     } label: {
-                        Label("Add to Collection", systemImage: "folder.badge.plus")
+                        Label("Add to Project", systemImage: "folder.badge.plus")
                     }
 
                     Button {
@@ -208,6 +213,8 @@ final class PlaybackViewModel: NSObject, AVAudioPlayerDelegate {
     var progress: Double = 0
     var currentTimeMs: Int = 0
     var isReady = false
+    var errorMessage: String?
+    var waveformSamples: [Float] = Array(repeating: 0.18, count: 48)
 
     private let recording: Recording
     private var audioPlayer: AVAudioPlayer?
@@ -230,8 +237,11 @@ final class PlaybackViewModel: NSObject, AVAudioPlayerDelegate {
 
     @MainActor
     func preparePlayback() async {
+        errorMessage = nil
+
         do {
             let url = try await recordingStorageService.resolvePlaybackURL(for: recording.uri)
+            waveformSamples = await Self.makeWaveformSamples(from: url)
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playback, mode: .default)
             try session.setActive(true)
@@ -244,6 +254,7 @@ final class PlaybackViewModel: NSObject, AVAudioPlayerDelegate {
         } catch {
             print("Failed to setup player: \(error)")
             isReady = false
+            errorMessage = "Playback unavailable for this recording: \(error.localizedDescription)"
         }
     }
 
@@ -340,6 +351,118 @@ final class PlaybackViewModel: NSObject, AVAudioPlayerDelegate {
         let minutes = totalSeconds / 60
         let seconds = totalSeconds % 60
         return String(format: "%d:%02d", minutes, seconds)
+    }
+
+    private static func makeWaveformSamples(from url: URL, sampleCount: Int = 48) async -> [Float] {
+        await Task.detached(priority: .utility) {
+            do {
+                let file = try AVAudioFile(forReading: url)
+                let frameCount = AVAudioFrameCount(file.length)
+                guard frameCount > 0 else {
+                    return Array(repeating: 0.18, count: sampleCount)
+                }
+
+                guard let buffer = AVAudioPCMBuffer(
+                    pcmFormat: file.processingFormat,
+                    frameCapacity: frameCount
+                ) else {
+                    return Array(repeating: 0.18, count: sampleCount)
+                }
+
+                try file.read(into: buffer)
+                guard let channelData = buffer.floatChannelData?[0] else {
+                    return Array(repeating: 0.18, count: sampleCount)
+                }
+
+                let totalFrames = Int(buffer.frameLength)
+                guard totalFrames > 0 else {
+                    return Array(repeating: 0.18, count: sampleCount)
+                }
+
+                let framesPerSample = max(totalFrames / sampleCount, 1)
+                var samples: [Float] = []
+                samples.reserveCapacity(sampleCount)
+
+                var maxAmplitude: Float = 0
+                for start in stride(from: 0, to: totalFrames, by: framesPerSample) {
+                    let end = min(start + framesPerSample, totalFrames)
+                    var peak: Float = 0
+
+                    for frame in start..<end {
+                        peak = max(peak, abs(channelData[frame]))
+                    }
+
+                    maxAmplitude = max(maxAmplitude, peak)
+                    samples.append(peak)
+                }
+
+                if samples.count < sampleCount {
+                    samples.append(contentsOf: repeatElement(0, count: sampleCount - samples.count))
+                } else if samples.count > sampleCount {
+                    samples = Array(samples.prefix(sampleCount))
+                }
+
+                guard maxAmplitude > 0 else {
+                    return Array(repeating: 0.18, count: sampleCount)
+                }
+
+                return samples.map { sample in
+                    let normalized = sample / maxAmplitude
+                    return max(0.12, pow(normalized, 0.65))
+                }
+            } catch {
+                return Array(repeating: 0.18, count: sampleCount)
+            }
+        }.value
+    }
+}
+
+private struct PlaybackWaveformView: View {
+    let samples: [Float]
+    let progress: Double
+    let isReady: Bool
+    let onSeek: (Double) -> Void
+
+    private let barSpacing: CGFloat = 3
+
+    var body: some View {
+        GeometryReader { geometry in
+            let count = max(samples.count, 1)
+            let totalSpacing = CGFloat(max(count - 1, 0)) * barSpacing
+            let barWidth = max((geometry.size.width - totalSpacing) / CGFloat(count), 3)
+
+            HStack(alignment: .center, spacing: barSpacing) {
+                ForEach(Array(samples.enumerated()), id: \.offset) { index, sample in
+                    RoundedRectangle(cornerRadius: barWidth / 2)
+                        .fill(barColor(for: index))
+                        .frame(width: barWidth, height: barHeight(for: sample, in: geometry.size.height))
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        guard isReady else { return }
+                        onSeek(progress(for: value.location.x, width: geometry.size.width))
+                    }
+            )
+        }
+        .frame(height: 96)
+    }
+
+    private func barColor(for index: Int) -> Color {
+        let threshold = Int((Double(samples.count) * progress).rounded(.down))
+        return index < threshold ? Theme.primaryColor : Theme.primaryColor.opacity(0.22)
+    }
+
+    private func barHeight(for sample: Float, in height: CGFloat) -> CGFloat {
+        max(10, CGFloat(sample) * height)
+    }
+
+    private func progress(for x: CGFloat, width: CGFloat) -> Double {
+        guard width > 0 else { return 0 }
+        return min(max(Double(x / width), 0), 1)
     }
 }
 
