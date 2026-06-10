@@ -40,6 +40,7 @@ yarn-error.*
 app-example
 
 # iOS Swift
+ios/.build/
 ios/Refrain.xcodeproj/xcuserdata/
 ios/Refrain.xcodeproj/project.xcworkspace/xcuserdata/
 ios/*.xcuserstate
@@ -65,5 +66,9 @@ xcuserdata/
 DerivedData/
 *.xccheckout
 *.xcscmblueprint
+
+# App build output
+apps/*/.next/
+apps/*/ios/.build/
 
 AGENT_RULES.md
