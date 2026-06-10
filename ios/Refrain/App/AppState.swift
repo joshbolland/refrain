@@ -108,6 +108,7 @@ final class AppState {
     var selectedTab: MainTab = .library
     var pendingLibrarySelection: LibraryItem?
     var sharedImportFeedback: SharedImportFeedback?
+    private var tabBarHiddenRequesters: Set<String> = []
 
     // MARK: - Services
     private let authService = AuthService.shared
@@ -120,6 +121,16 @@ final class AppState {
 
     init() {
         loadLibraryMetadata()
+    }
+
+    func setTabBarHidden(_ isHidden: Bool, requester: String) {
+        if isHidden {
+            tabBarHiddenRequesters.insert(requester)
+        } else {
+            tabBarHiddenRequesters.remove(requester)
+        }
+
+        isTabBarHidden = !tabBarHiddenRequesters.isEmpty
     }
 
     func initialize() async {
@@ -360,14 +371,18 @@ final class AppState {
 
     // MARK: - Lyric File Operations
 
-    func createLyricFile(title: String = "Untitled") async -> LyricFile? {
+    func createLyricFile(
+        title: String = "Untitled",
+        body: String = "",
+        sectionTypes: [Int: SectionType] = [:]
+    ) async -> LyricFile? {
         let file = LyricFile(
             id: UUID().uuidString,
             title: title,
-            body: "",
+            body: body,
             createdAt: Date(),
             updatedAt: Date(),
-            sectionTypes: [:]
+            sectionTypes: sectionTypes
         )
 
         do {

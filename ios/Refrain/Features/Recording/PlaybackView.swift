@@ -170,7 +170,7 @@ struct PlaybackView: View {
             }
         }
         .onAppear {
-            appState.isTabBarHidden = true
+            appState.setTabBarHidden(true, requester: "playback")
         }
         .task {
             await viewModel.preparePlayback()
@@ -180,7 +180,7 @@ struct PlaybackView: View {
         }
         .onDisappear {
             viewModel.stop()
-            appState.isTabBarHidden = false
+            appState.setTabBarHidden(false, requester: "playback")
         }
     }
 

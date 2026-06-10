@@ -37,6 +37,7 @@ struct LyricTextEditor: View {
                         onTap: pickerLineIndex == nil ? nil : onPickerDismiss
                     )
                     .frame(width: Theme.lineNumberWidth)
+                    .frame(maxHeight: .infinity, alignment: .top)
 
                     ZStack(alignment: .topLeading) {
                         // Main text editor
@@ -59,6 +60,8 @@ struct LyricTextEditor: View {
                             onCursorChange: onCursorChange,
                             onTap: pickerLineIndex == nil ? nil : onPickerDismiss
                         )
+                        .equatable()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
                         SectionPillsOverlay(
                             text: text,
@@ -70,8 +73,21 @@ struct LyricTextEditor: View {
                         )
                         .padding(.leading, Theme.editorHorizontalPadding)
                         .allowsHitTesting(false)
+
+                        SectionPillTapOverlay(
+                            text: text,
+                            sectionTypes: sectionTypes,
+                            lineHeights: lineHeights,
+                            scrollOffset: scrollOffset,
+                            viewportHeight: viewportHeight,
+                            onBadgeTap: onSectionBadgeTap
+                        )
+                        .padding(.leading, Theme.editorHorizontalPadding)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
+                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
 
                 // Inline section picker overlay
                 if let pickerLine = pickerLineIndex {
@@ -89,6 +105,7 @@ struct LyricTextEditor: View {
                         onSelect: onPickerSelect,
                         onDismiss: onPickerDismiss
                     )
+                    .id(inlinePickerIdentity(for: pickerLine))
                     .frame(width: availableWidth, alignment: .leading)
                     .offset(
                         x: xOffset,
@@ -96,6 +113,8 @@ struct LyricTextEditor: View {
                     )
                 }
             }
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+            .clipped()
             .onAppear {
                 viewportHeight = geometry.size.height
             }
@@ -186,6 +205,11 @@ struct LyricTextEditor: View {
 
     private var inlinePickerNewModeHorizontalAdjustment: CGFloat {
         -16
+    }
+
+    private func inlinePickerIdentity(for lineIndex: Int) -> String {
+        let activeType = sectionTypes[lineIndex]?.displayName ?? "none"
+        return "\(pickerMode)-\(lineIndex)-\(activeType)"
     }
 }
 
@@ -283,6 +307,139 @@ struct SectionPillLabel: View {
     }
 }
 
+private struct SectionPillTapOverlay: UIViewRepresentable {
+    let text: String
+    let sectionTypes: [Int: SectionType]
+    let lineHeights: [Int: CGFloat]
+    let scrollOffset: CGFloat
+    let viewportHeight: CGFloat
+    let onBadgeTap: (Int) -> Void
+
+    func makeUIView(context: Context) -> SectionPillTapOverlayView {
+        SectionPillTapOverlayView()
+    }
+
+    func updateUIView(_ uiView: SectionPillTapOverlayView, context: Context) {
+        uiView.onBadgeTap = onBadgeTap
+
+        let lines = text.components(separatedBy: "\n")
+        let validStarts = SectionAnalyzer.getValidSectionStartSet(body: text)
+        let targets = sectionTypes.keys.sorted().compactMap { lineIndex -> SectionPillTapTarget? in
+            guard let sectionType = sectionTypes[lineIndex], validStarts.contains(lineIndex) else {
+                return nil
+            }
+
+            let yOffset = calculateYOffset(for: lineIndex)
+            let labelOffset = labelVerticalOffset(for: lineIndex, lines: lines)
+            let visibleY = yOffset - scrollOffset - labelOffset
+
+            guard isVisible(visibleY: visibleY) else { return nil }
+
+            let frame = CGRect(
+                x: -8,
+                y: visibleY - 4,
+                width: sectionPillWidth(for: sectionType) + 16,
+                height: sectionPillHeight + 8
+            )
+            return SectionPillTapTarget(lineIndex: lineIndex, frame: frame)
+        }
+
+        uiView.updateTargets(targets)
+    }
+
+    private func calculateYOffset(for lineIndex: Int) -> CGFloat {
+        var offset: CGFloat = Theme.editorPaddingTop
+        for i in 0..<lineIndex {
+            offset += lineHeights[i] ?? Theme.editorLineHeight
+        }
+        return offset
+    }
+
+    private func labelVerticalOffset(for lineIndex: Int, lines: [String]) -> CGFloat {
+        let lift = Theme.editorLineHeight * 0.75
+        guard lineIndex > 0, lineIndex - 1 < lines.count else {
+            return lift
+        }
+        if SectionAnalyzer.isBlankLine(lines[lineIndex - 1]) {
+            return lift
+        }
+        return Theme.editorLineHeight * 0.6
+    }
+
+    private func isVisible(visibleY: CGFloat) -> Bool {
+        let cullMargin: CGFloat = 160
+        return visibleY >= -cullMargin && visibleY <= viewportHeight + cullMargin
+    }
+
+    private func sectionPillWidth(for type: SectionType) -> CGFloat {
+        let text = type.displayName.uppercased()
+        let font = UIFont.systemFont(ofSize: 11, weight: .semibold)
+        let baseWidth = (text as NSString).size(withAttributes: [.font: font]).width
+        let tracking: CGFloat = 2
+        let extraTracking = tracking * CGFloat(max(0, text.count - 1))
+        return baseWidth + extraTracking + 24
+    }
+
+    private var sectionPillHeight: CGFloat {
+        UIFont.systemFont(ofSize: 11, weight: .semibold).lineHeight + 10
+    }
+}
+
+private struct SectionPillTapTarget: Equatable {
+    let lineIndex: Int
+    let frame: CGRect
+}
+
+private final class SectionPillTapOverlayView: UIView {
+    var onBadgeTap: ((Int) -> Void)?
+    private var buttons: [Int: UIButton] = [:]
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .clear
+        isOpaque = false
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        buttons.values.contains { !$0.isHidden && $0.frame.contains(point) }
+    }
+
+    func updateTargets(_ targets: [SectionPillTapTarget]) {
+        let activeLineIndices = Set(targets.map(\.lineIndex))
+
+        for (lineIndex, button) in buttons where !activeLineIndices.contains(lineIndex) {
+            button.removeFromSuperview()
+            buttons.removeValue(forKey: lineIndex)
+        }
+
+        for target in targets {
+            let button = buttons[target.lineIndex] ?? makeButton(for: target.lineIndex)
+            button.frame = target.frame
+            button.isHidden = false
+        }
+    }
+
+    private func makeButton(for lineIndex: Int) -> UIButton {
+        let button = UIButton(type: .custom)
+        button.backgroundColor = .clear
+        button.tag = lineIndex
+        button.addTarget(self, action: #selector(handleTap(_:)), for: .touchUpInside)
+        addSubview(button)
+        buttons[lineIndex] = button
+        return button
+    }
+
+    @objc
+    private func handleTap(_ sender: UIButton) {
+        onBadgeTap?(sender.tag)
+    }
+}
+
 // MARK: - Section Badges Gutter
 
 struct SectionBadgesGutter: View {
@@ -365,7 +522,7 @@ struct LineNumbersGutter: View {
         let validStarts = SectionAnalyzer.getValidSectionStartSet(body: bodyText)
         let displayNumbers = buildDisplayNumbers(lines: lines, validStarts: validStarts)
 
-        GeometryReader { _ in
+        let gutter = GeometryReader { _ in
             ZStack(alignment: .topTrailing) {
                 ForEach(0..<max(1, lines.count), id: \.self) { lineIndex in
                     let yOffset = calculateYOffset(for: lineIndex)
@@ -387,8 +544,11 @@ struct LineNumbersGutter: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             .clipped()
         }
-        .onTapGesture {
-            onTap?()
+
+        if let onTap {
+            gutter.onTapGesture(perform: onTap)
+        } else {
+            gutter.allowsHitTesting(false)
         }
     }
 
@@ -476,6 +636,35 @@ struct SyllableCountsGutter: View {
 
 final class LyricTextView: UITextView {
     private let rhymeAccessoryView = RhymeAccessoryInputView()
+    var shouldSuppressSelectionAtPoint: ((CGPoint) -> Bool)?
+    var onBoundsWidthChange: ((LyricTextView) -> Void)?
+    private var lastLaidOutWidth: CGFloat = 0
+
+    override var intrinsicContentSize: CGSize {
+        CGSize(width: UIView.noIntrinsicMetric, height: UIView.noIntrinsicMetric)
+    }
+
+    override func closestPosition(to point: CGPoint) -> UITextPosition? {
+        guard shouldSuppressSelectionAtPoint?(point) != true else {
+            return nil
+        }
+
+        return super.closestPosition(to: point)
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+
+        let width = bounds.width
+        guard width > 0 else { return }
+
+        if abs(width - lastLaidOutWidth) > 0.5 {
+            lastLaidOutWidth = width
+            onBoundsWidthChange?(self)
+        }
+
+        updateMeasuredContentSize()
+    }
 
     override func caretRect(for position: UITextPosition) -> CGRect {
         var rect = super.caretRect(for: position)
@@ -492,6 +681,23 @@ final class LyricTextView: UITextView {
 
     private var caretVerticalOffset: CGFloat {
         5
+    }
+
+    private func updateMeasuredContentSize() {
+        layoutManager.ensureLayout(for: textContainer)
+
+        let usedRect = layoutManager.usedRect(for: textContainer)
+        let measuredHeight = ceil(
+            usedRect.maxY + textContainerInset.top + textContainerInset.bottom
+        )
+        let targetHeight = max(bounds.height, measuredHeight)
+
+        guard abs(contentSize.height - targetHeight) > 0.5 else { return }
+
+        contentSize = CGSize(
+            width: max(bounds.width, contentSize.width),
+            height: targetHeight
+        )
     }
 
     func configureRhymeAccessory(isVisible: Bool) {
@@ -521,7 +727,7 @@ final class LyricTextView: UITextView {
     }
 }
 
-struct LyricTextViewRepresentable: UIViewRepresentable {
+struct LyricTextViewRepresentable: UIViewRepresentable, Equatable {
     @Binding var text: String
     let sectionTypes: [Int: SectionType]
     let lineHeights: [Int: CGFloat]
@@ -536,6 +742,30 @@ struct LyricTextViewRepresentable: UIViewRepresentable {
     let onCursorChange: ((Int, String?) -> Void)?
     let onTap: (() -> Void)?
 
+    struct EditorTextStyle: Equatable {
+        let lineHeight: CGFloat
+        let fontSize: CGFloat
+    }
+
+    static func == (lhs: LyricTextViewRepresentable, rhs: LyricTextViewRepresentable) -> Bool {
+        lhs.text == rhs.text
+            && lhs.sectionTypes == rhs.sectionTypes
+            && lhs.lineHeights == rhs.lineHeights
+            && lhs.lineHeight == rhs.lineHeight
+            && lhs.fontSize == rhs.fontSize
+            && lhs.currentWord == rhs.currentWord
+            && lhs.keyboardInset == rhs.keyboardInset
+            && lhs.showsRhymeSuggestions == rhs.showsRhymeSuggestions
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
+        guard let width = proposal.width, let height = proposal.height else {
+            return nil
+        }
+
+        return CGSize(width: width, height: height)
+    }
+
     func makeUIView(context: Context) -> UITextView {
         let textView = LyricTextView()
         textView.configureRhymeAccessory(isVisible: showsRhymeSuggestions)
@@ -547,6 +777,8 @@ struct LyricTextViewRepresentable: UIViewRepresentable {
             right: Theme.editorHorizontalPadding
         )
         textView.textContainer.lineFragmentPadding = 0
+        textView.textContainer.heightTracksTextView = false
+        textView.textContainer.widthTracksTextView = true
         textView.autocorrectionType = .no
         textView.autocapitalizationType = .none
         textView.spellCheckingType = .no
@@ -554,12 +786,21 @@ struct LyricTextViewRepresentable: UIViewRepresentable {
         textView.showsHorizontalScrollIndicator = false
         textView.isScrollEnabled = true
         textView.alwaysBounceVertical = true
+        textView.contentInsetAdjustmentBehavior = .never
         textView.backgroundColor = .clear
         textView.textAlignment = .left
         textView.tintColor = UIColor(Theme.accentPressed)
-        textView.keyboardDismissMode = .interactive
+        textView.keyboardDismissMode = .none
+        textView.inputAssistantItem.leadingBarButtonGroups = []
+        textView.inputAssistantItem.trailingBarButtonGroups = []
+        textView.setContentHuggingPriority(.defaultLow, for: .vertical)
+        textView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         applyTextStyle(to: textView, preserveSelection: false)
+        context.coordinator.appliedTextStyle = currentTextStyle
         updateInsets(for: textView)
+        textView.onBoundsWidthChange = { lyricTextView in
+            self.calculateLineHeights(for: lyricTextView)
+        }
         let tapRecognizer = UITapGestureRecognizer(
             target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
         tapRecognizer.cancelsTouchesInView = false
@@ -570,17 +811,26 @@ struct LyricTextViewRepresentable: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UITextView, context: Context) {
-        if uiView.text != text || needsAttributesUpdate(uiView) {
+        context.coordinator.parent = self
+
+        if uiView.text != text {
             applyTextStyle(to: uiView, preserveSelection: true)
+            context.coordinator.appliedTextStyle = currentTextStyle
+            DispatchQueue.main.async {
+                self.calculateLineHeights(for: uiView)
+            }
+        } else if context.coordinator.appliedTextStyle != currentTextStyle {
+            applyTextAttributesInPlace(to: uiView)
+            context.coordinator.appliedTextStyle = currentTextStyle
+            DispatchQueue.main.async {
+                self.calculateLineHeights(for: uiView)
+            }
+        } else {
+            uiView.typingAttributes = textAttributes()
         }
 
         updateInsets(for: uiView)
         updateRhymeAccessory(for: uiView, coordinator: context.coordinator)
-
-        // Calculate line heights after layout
-        DispatchQueue.main.async {
-            self.calculateLineHeights(for: uiView)
-        }
     }
 
     func makeCoordinator() -> Coordinator {
@@ -594,6 +844,10 @@ struct LyricTextViewRepresentable: UIViewRepresentable {
 
     private func updateRhymeAccessory(for textView: UITextView, coordinator: Coordinator) {
         guard let lyricTextView = textView as? LyricTextView else { return }
+        lyricTextView.shouldSuppressSelectionAtPoint = { [weak lyricTextView] point in
+            guard let lyricTextView else { return false }
+            return coordinator.isSectionPillRowHit(at: point, in: lyricTextView)
+        }
         lyricTextView.updateRhymeAccessory(
             isVisible: showsRhymeSuggestions,
             currentWord: currentWord,
@@ -606,25 +860,50 @@ struct LyricTextViewRepresentable: UIViewRepresentable {
 
     private func updateInsets(for textView: UITextView) {
         let accessoryInset = showsRhymeSuggestions ? rhymeAccessoryHeight : 0
-        let visibleBottomInset = max(0, keyboardInset) + accessoryInset + 24
-        let bottomTextInset: CGFloat = 16
-        textView.textContainerInset = UIEdgeInsets(
+        let visibleBottomInset = max(0, keyboardInset) + accessoryInset
+        let bottomTextInset: CGFloat = bottomReadableInset
+        let desiredTextContainerInset = UIEdgeInsets(
             top: Theme.editorPaddingTop,
             left: Theme.editorHorizontalPadding,
             bottom: bottomTextInset,
             right: Theme.editorHorizontalPadding
         )
-        textView.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: visibleBottomInset, right: 0)
-        textView.scrollIndicatorInsets = UIEdgeInsets(
+        let desiredContentInset = UIEdgeInsets(
             top: 0,
             left: 0,
             bottom: visibleBottomInset,
             right: 0
         )
+        let desiredScrollIndicatorInsets = UIEdgeInsets(
+            top: 0,
+            left: 0,
+            bottom: visibleBottomInset,
+            right: 0
+        )
+
+        if textView.textContainerInset != desiredTextContainerInset {
+            textView.textContainerInset = desiredTextContainerInset
+        }
+        if textView.contentInset != desiredContentInset {
+            textView.contentInset = desiredContentInset
+        }
+        let currentScrollIndicatorInsets = UIEdgeInsets(
+            top: textView.verticalScrollIndicatorInsets.top,
+            left: textView.horizontalScrollIndicatorInsets.left,
+            bottom: textView.verticalScrollIndicatorInsets.bottom,
+            right: textView.horizontalScrollIndicatorInsets.right
+        )
+        if currentScrollIndicatorInsets != desiredScrollIndicatorInsets {
+            textView.scrollIndicatorInsets = desiredScrollIndicatorInsets
+        }
     }
 
     private var rhymeAccessoryHeight: CGFloat {
         78
+    }
+
+    private var bottomReadableInset: CGFloat {
+        Theme.editorLineHeight
     }
 
     private func calculateLineHeights(for textView: UITextView) {
@@ -670,7 +949,7 @@ struct LyricTextViewRepresentable: UIViewRepresentable {
             heights[index] = height
         }
 
-        if !heights.isEmpty {
+        if !heights.isEmpty, heights != lineHeights {
             onLineHeightsChange(heights)
         }
     }
@@ -703,32 +982,23 @@ struct LyricTextViewRepresentable: UIViewRepresentable {
         ]
     }
 
-    private func needsAttributesUpdate(_ textView: UITextView) -> Bool {
-        guard let paragraphStyle = textView.typingAttributes[.paragraphStyle] as? NSParagraphStyle
-        else {
-            return true
-        }
+    private var currentTextStyle: EditorTextStyle {
+        EditorTextStyle(lineHeight: lineHeight, fontSize: fontSize)
+    }
 
-        if paragraphStyle.minimumLineHeight != lineHeight
-            || paragraphStyle.maximumLineHeight != lineHeight || paragraphStyle.alignment != .left
-        {
-            return true
-        }
+    private func applyTextAttributesInPlace(to textView: UITextView) {
+        let attributes = textAttributes()
+        let range = NSRange(location: 0, length: textView.textStorage.length)
 
-        guard let font = textView.typingAttributes[.font] as? UIFont else {
-            return true
-        }
-
-        if font.pointSize != fontSize {
-            return true
-        }
-
-        let expectedFont = UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
-        return font.fontName != expectedFont.fontName
+        textView.textStorage.beginEditing()
+        textView.textStorage.setAttributes(attributes, range: range)
+        textView.textStorage.endEditing()
+        textView.typingAttributes = attributes
     }
 
     class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate {
         var parent: LyricTextViewRepresentable
+        var appliedTextStyle: EditorTextStyle?
 
         init(_ parent: LyricTextViewRepresentable) {
             self.parent = parent
@@ -742,7 +1012,6 @@ struct LyricTextViewRepresentable: UIViewRepresentable {
 
         func textViewDidChangeSelection(_ textView: UITextView) {
             updateCursorInfo(textView)
-            scrollCaretIntoView(for: textView, animated: true)
         }
 
         func scrollViewDidScroll(_ scrollView: UIScrollView) {
@@ -750,17 +1019,6 @@ struct LyricTextViewRepresentable: UIViewRepresentable {
         }
 
         @objc func handleTap(_ recognizer: UITapGestureRecognizer) {
-            guard let textView = recognizer.view as? UITextView else {
-                parent.onTap?()
-                return
-            }
-
-            let location = recognizer.location(in: textView)
-            if let tappedLineIndex = badgeLineIndex(at: location, in: textView) {
-                parent.onSectionBadgeTap(tappedLineIndex)
-                return
-            }
-
             parent.onTap?()
         }
 
@@ -768,16 +1026,7 @@ struct LyricTextViewRepresentable: UIViewRepresentable {
             _ gestureRecognizer: UIGestureRecognizer,
             shouldReceive touch: UITouch
         ) -> Bool {
-            guard let textView = gestureRecognizer.view as? UITextView else {
-                return parent.onTap != nil
-            }
-
-            if parent.onTap != nil {
-                return true
-            }
-
-            let location = touch.location(in: textView)
-            return badgeLineIndex(at: location, in: textView) != nil
+            parent.onTap != nil
         }
 
         func gestureRecognizer(
@@ -798,6 +1047,7 @@ struct LyricTextViewRepresentable: UIViewRepresentable {
             parent.applyTextStyle(to: textView, preserveSelection: false)
             textView.selectedRange = replacement.selectedRange
             updateCursorInfo(textView)
+            scrollCaretIntoView(for: textView, animated: true)
         }
 
         private func updateCursorInfo(_ textView: UITextView) {
@@ -817,53 +1067,67 @@ struct LyricTextViewRepresentable: UIViewRepresentable {
             guard let selectedTextRange = textView.selectedTextRange else { return }
 
             var caretRect = textView.caretRect(for: selectedTextRange.end)
-            caretRect = caretRect.insetBy(dx: 0, dy: -12)
-            textView.scrollRectToVisible(caretRect, animated: animated)
+            caretRect = caretRect.insetBy(dx: 0, dy: -caretVisibilityPadding)
+
+            let visibleHeight = max(
+                0,
+                textView.bounds.height - textView.contentInset.bottom
+            )
+            let visibleTop = textView.contentOffset.y
+            let visibleBottom = visibleTop + visibleHeight
+
+            var targetOffsetY = textView.contentOffset.y
+            if caretRect.maxY > visibleBottom {
+                targetOffsetY += caretRect.maxY - visibleBottom
+            } else if caretRect.minY < visibleTop {
+                targetOffsetY -= visibleTop - caretRect.minY
+            } else {
+                return
+            }
+
+            let minOffsetY = -textView.contentInset.top
+            let maxOffsetY = max(
+                minOffsetY,
+                textView.contentSize.height - visibleHeight
+            )
+            targetOffsetY = min(max(targetOffsetY, minOffsetY), maxOffsetY)
+            textView.setContentOffset(
+                CGPoint(x: textView.contentOffset.x, y: targetOffsetY),
+                animated: animated
+            )
         }
 
-        private func badgeLineIndex(at location: CGPoint, in textView: UITextView) -> Int? {
+        private var caretVisibilityPadding: CGFloat {
+            12
+        }
+
+        func isSectionPillRowHit(at location: CGPoint, in textView: UITextView) -> Bool {
             let lines = parent.text.components(separatedBy: "\n")
             let validStarts = SectionAnalyzer.getValidSectionStartSet(body: parent.text)
-            let pillHeight = sectionPillHeight
 
             for lineIndex in parent.sectionTypes.keys.sorted() where validStarts.contains(lineIndex) {
-                guard let sectionType = parent.sectionTypes[lineIndex] else { continue }
-
                 let yOffset = calculateYOffset(for: lineIndex)
                 let labelOffset = labelVerticalOffset(for: lineIndex, lines: lines)
                 let visibleY = yOffset - textView.contentOffset.y - labelOffset
-                let pillWidth = sectionPillWidth(for: sectionType)
                 let hitRect = CGRect(
-                    x: Theme.editorHorizontalPadding - 8,
+                    x: 0,
                     y: visibleY - 4,
-                    width: pillWidth + 16,
-                    height: pillHeight + 8
+                    width: textView.bounds.width,
+                    height: sectionPillHeight + 8
                 )
 
                 if hitRect.contains(location) {
-                    return lineIndex
+                    return true
                 }
             }
 
-            return nil
-        }
-
-        private func calculateLineIndex(from position: Int, in text: String) -> Int {
-            guard position <= text.count else { return 0 }
-
-            let prefix = String(text.prefix(position))
-            let lineIndex = prefix.components(separatedBy: "\n").count - 1
-            return max(0, lineIndex)
-        }
-
-        private func findWordAtPosition(_ position: Int, in text: String) -> String? {
-            RhymeSuggestionEditing.currentWordAtCaret(at: position, in: text)
+            return false
         }
 
         private func calculateYOffset(for lineIndex: Int) -> CGFloat {
             var offset: CGFloat = Theme.editorPaddingTop
-            for index in 0..<lineIndex {
-                offset += parent.lineHeights[index] ?? parent.lineHeight
+            for i in 0..<lineIndex {
+                offset += parent.lineHeights[i] ?? Theme.editorLineHeight
             }
             return offset
         }
@@ -879,18 +1143,22 @@ struct LyricTextViewRepresentable: UIViewRepresentable {
             return Theme.editorLineHeight * 0.6
         }
 
-        private func sectionPillWidth(for type: SectionType) -> CGFloat {
-            let text = type.displayName.uppercased()
-            let font = UIFont.systemFont(ofSize: 11, weight: .semibold)
-            let baseWidth = (text as NSString).size(withAttributes: [.font: font]).width
-            let tracking: CGFloat = 2
-            let extraTracking = tracking * CGFloat(max(0, text.count - 1))
-            return baseWidth + extraTracking + 24
-        }
-
         private var sectionPillHeight: CGFloat {
             UIFont.systemFont(ofSize: 11, weight: .semibold).lineHeight + 10
         }
+
+        private func calculateLineIndex(from position: Int, in text: String) -> Int {
+            guard position <= text.count else { return 0 }
+
+            let prefix = String(text.prefix(position))
+            let lineIndex = prefix.components(separatedBy: "\n").count - 1
+            return max(0, lineIndex)
+        }
+
+        private func findWordAtPosition(_ position: Int, in text: String) -> String? {
+            RhymeSuggestionEditing.currentWordAtCaret(at: position, in: text)
+        }
+
     }
 }
 

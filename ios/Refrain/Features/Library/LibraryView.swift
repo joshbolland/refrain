@@ -1,15 +1,20 @@
 import SwiftUI
+import VisionKit
 
 struct LibraryView: View {
     @Environment(AppState.self) private var appState
 
     @State private var showFilterSheet = false
     @State private var showProfile = false
+    @State private var showLyricScanner = false
     @State private var selectedItem: LibraryItem?
     @State private var projectSheetItem: LibraryItem?
     @State private var showManageItemsSheet = false
     @State private var renamingItem: LibraryItem?
     @State private var renameDraft = ""
+    @State private var scanDraft: LyricScanDraft?
+    @State private var scanErrorMessage: String?
+    @State private var isProcessingScan = false
 
     private var visibleItems: [LibraryItem] {
         appState.filteredLibraryItems
@@ -39,6 +44,17 @@ struct LibraryView: View {
             set: { isPresented in
                 if !isPresented {
                     renamingItem = nil
+                }
+            }
+        )
+    }
+
+    private var scanErrorIsPresented: Binding<Bool> {
+        Binding(
+            get: { scanErrorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    scanErrorMessage = nil
                 }
             }
         )
@@ -95,6 +111,10 @@ struct LibraryView: View {
                         )
                         .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 6)
                     }
+
+                    if isProcessingScan {
+                        scanProcessingOverlay
+                    }
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
@@ -104,6 +124,9 @@ struct LibraryView: View {
                 }
                 selectedItem = newSelection
                 appState.pendingLibrarySelection = nil
+            }
+            .onChange(of: selectedItem) { _, newSelection in
+                appState.setTabBarHidden(newSelection != nil, requester: "libraryNavigation")
             }
             .sheet(isPresented: $showFilterSheet) {
                 LibraryFilterSheet {
@@ -116,8 +139,25 @@ struct LibraryView: View {
             .sheet(isPresented: $showManageItemsSheet) {
                 LibraryItemManagementSheet()
             }
+            .sheet(isPresented: $showLyricScanner) {
+                LyricDocumentCameraSheet(
+                    isPresented: $showLyricScanner,
+                    onScan: handleScan,
+                    onCancel: {},
+                    onError: { error in
+                        scanErrorMessage = error.localizedDescription
+                    }
+                )
+                .ignoresSafeArea()
+            }
             .sheet(item: $projectSheetItem) { item in
                 ProjectsSheet(item: item)
+            }
+            .sheet(item: $scanDraft) { draft in
+                LyricScanReviewSheet(draft: draft) { file in
+                    selectedItem = .lyric(file)
+                    scanDraft = nil
+                }
             }
             .navigationDestination(item: $selectedItem) { item in
                 switch item {
@@ -142,6 +182,11 @@ struct LibraryView: View {
                         await appState.renameItem(item, to: newTitle)
                     }
                 }
+            }
+            .alert("Unable to Scan", isPresented: scanErrorIsPresented) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(scanErrorMessage ?? "Please try again.")
             }
         }
     }
@@ -192,6 +237,16 @@ struct LibraryView: View {
                 set: { appState.searchQuery = $0 }
             ), placeholder: "Search ideas")
             .frame(maxWidth: .infinity)
+
+            Button {
+                startScanFlow()
+            } label: {
+                Image(systemName: "doc.text.viewfinder")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(Theme.accentPressed)
+                    .frame(width: 36, height: 36)
+            }
+            .buttonStyle(PressableScaleStyle())
 
             Button {
                 showFilterSheet = true
@@ -303,28 +358,25 @@ struct LibraryView: View {
             .multilineTextAlignment(.center)
 
             if appState.archiveFilter != .archivedOnly {
-                Button {
-                    Task {
-                        if let file = await appState.createLyricFile() {
-                            selectedItem = .lyric(file)
+                HStack(spacing: 10) {
+                    Button {
+                        Task {
+                            if let file = await appState.createLyricFile() {
+                                selectedItem = .lyric(file)
+                            }
                         }
+                    } label: {
+                        emptyStateActionLabel(title: "Create lyric", systemImage: "square.and.pencil")
                     }
-                } label: {
-                    Text("Create lyric")
-                        .font(.system(size: 11, weight: .semibold))
-                        .textCase(.uppercase)
-                        .tracking(2)
-                        .foregroundStyle(Theme.accentPressed)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 6)
-                        .background(Color(hex: "E8EBFF"))
-                        .overlay(
-                            Capsule()
-                                .stroke(Color(hex: "C7D1FF"), lineWidth: 1)
-                        )
-                        .clipShape(Capsule())
+                    .buttonStyle(PressableScaleStyle())
+
+                    Button {
+                        startScanFlow()
+                    } label: {
+                        emptyStateActionLabel(title: "Scan lyrics", systemImage: "doc.text.viewfinder")
+                    }
+                    .buttonStyle(PressableScaleStyle())
                 }
-                .buttonStyle(PressableScaleStyle())
                 .padding(.top, 6)
             }
         }
@@ -333,6 +385,81 @@ struct LibraryView: View {
         .padding(.horizontal, 18)
         .background(Theme.accentSoft)
         .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+    }
+
+    private var scanProcessingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.16)
+                .ignoresSafeArea()
+
+            VStack(spacing: 14) {
+                ProgressView()
+                    .tint(Theme.accentPressed)
+
+                Text("Scanning lyrics...")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Theme.ink)
+
+                Text("Refrain is converting your document into editable text.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.muted.opacity(0.85))
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 220)
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 22)
+            .background(Theme.paper)
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
+                    .stroke(Theme.divider, lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+            .shadow(color: Color.black.opacity(0.1), radius: 18, x: 0, y: 10)
+        }
+    }
+
+    private func emptyStateActionLabel(title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .font(.system(size: 11, weight: .semibold))
+            .textCase(.uppercase)
+            .tracking(1.6)
+            .foregroundStyle(Theme.accentPressed)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(Color(hex: "E8EBFF"))
+            .overlay(
+                Capsule()
+                    .stroke(Color(hex: "C7D1FF"), lineWidth: 1)
+            )
+            .clipShape(Capsule())
+    }
+
+    private func startScanFlow() {
+        guard LyricScanService.isSupported else {
+            scanErrorMessage = LyricScanError.scannerUnavailable.localizedDescription
+            return
+        }
+
+        showLyricScanner = true
+    }
+
+    private func handleScan(_ scan: VNDocumentCameraScan) {
+        isProcessingScan = true
+
+        Task {
+            do {
+                let draft = try await LyricScanService.recognizeText(from: scan)
+                await MainActor.run {
+                    isProcessingScan = false
+                    scanDraft = draft
+                }
+            } catch {
+                await MainActor.run {
+                    isProcessingScan = false
+                    scanErrorMessage = error.localizedDescription
+                }
+            }
+        }
     }
 
     private var listView: some View {

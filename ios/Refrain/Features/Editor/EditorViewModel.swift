@@ -239,6 +239,11 @@ final class EditorViewModel {
 
     /// Opens the picker in edit mode for an existing section
     func openPickerForEditing(at lineIndex: Int) {
+        if pickerMode == .edit, pickerLineIndex == lineIndex {
+            pickerLineIndex = nil
+            return
+        }
+
         suppressedAutoPickerLineIndex = nil
         pickerMode = .edit
         pickerLineIndex = lineIndex

@@ -24,15 +24,19 @@ struct MainTabView: View {
         }
         .background(Theme.paper)
         .overlay(alignment: .bottom) {
-            PrimaryTabBarContainer(
-                isVisible: !appState.isTabBarHidden && !showRecording,
-                selectedTab: Binding(
-                    get: { appState.selectedTab },
-                    set: { appState.selectedTab = $0 }
-                ),
-                onCreate: { showCreateSheet = true }
-            )
+            if !appState.isTabBarHidden && !showRecording {
+                PrimaryTabBarContainer(
+                    selectedTab: Binding(
+                        get: { appState.selectedTab },
+                        set: { appState.selectedTab = $0 }
+                    ),
+                    onCreate: { showCreateSheet = true }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
+        .animation(.easeOut(duration: 0.18), value: appState.isTabBarHidden)
+        .animation(.easeOut(duration: 0.18), value: showRecording)
         .ignoresSafeArea(
             .keyboard,
             edges: appState.isTabBarHidden || showRecording ? [] : .bottom
@@ -68,16 +72,11 @@ struct MainTabView: View {
 }
 
 struct PrimaryTabBarContainer: View {
-    let isVisible: Bool
     @Binding var selectedTab: MainTab
     let onCreate: () -> Void
 
     var body: some View {
         PrimaryTabBar(selectedTab: $selectedTab, onCreate: onCreate)
-            .opacity(isVisible ? 1 : 0)
-            .offset(y: isVisible ? 0 : 28)
-            .allowsHitTesting(isVisible)
-            .animation(.easeOut(duration: 0.18), value: isVisible)
     }
 }
 

@@ -162,10 +162,10 @@ struct ProjectDetailView: View {
             }
         }
         .onAppear {
-            appState.isTabBarHidden = true
+            appState.setTabBarHidden(true, requester: "projectDetail")
         }
         .onDisappear {
-            appState.isTabBarHidden = false
+            appState.setTabBarHidden(false, requester: "projectDetail")
         }
         .sheet(isPresented: $showManageItemsSheet) {
             ProjectItemSelectionSheet(project: currentProject)

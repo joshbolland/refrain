@@ -6,6 +6,7 @@ struct RecordingView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var viewModel = RecordingViewModel()
+    @State private var isShowingSaveSheet = false
 
     var body: some View {
         NavigationStack {
@@ -75,11 +76,8 @@ struct RecordingView: View {
 
                     // Save button
                     Button {
-                        Task {
-                            if await viewModel.save(appState: appState) != nil {
-                                dismiss()
-                            }
-                        }
+                        viewModel.prepareDraftTitleIfNeeded()
+                        isShowingSaveSheet = true
                     } label: {
                         ZStack {
                             Circle()
@@ -141,7 +139,126 @@ struct RecordingView: View {
             } message: {
                 Text("Please enable microphone access in Settings to record audio.")
             }
+            .sheet(isPresented: $isShowingSaveSheet) {
+                NavigationStack {
+                    RecordingSaveSheet(
+                        title: $viewModel.draftTitle,
+                        suggestedTitle: viewModel.draftTitle,
+                        durationText: viewModel.formattedDuration,
+                        isSaving: viewModel.isSaving,
+                        onQuickTitleSelected: { title in
+                            viewModel.draftTitle = title
+                        },
+                        onCancel: {
+                            isShowingSaveSheet = false
+                        },
+                        onSave: {
+                            Task {
+                                if await viewModel.save(appState: appState, title: viewModel.draftTitle) != nil {
+                                    isShowingSaveSheet = false
+                                    dismiss()
+                                }
+                            }
+                        }
+                    )
+                }
+                .presentationDetents([.height(320)])
+                .presentationDragIndicator(.visible)
+            }
         }
+    }
+}
+
+private struct RecordingSaveSheet: View {
+    @Binding var title: String
+    let suggestedTitle: String
+    let durationText: String
+    let isSaving: Bool
+    let onQuickTitleSelected: (String) -> Void
+    let onCancel: () -> Void
+    let onSave: () -> Void
+    @FocusState private var isTitleFieldFocused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Name Recording")
+                    .font(.title3.weight(.semibold))
+
+//                Text("You can save this as is or give it a clearer label now.")
+//                    .font(.subheadline)
+//                    .foregroundStyle(.secondary)
+            }
+
+            TextField("Recording title", text: $title)
+                .textFieldStyle(.roundedBorder)
+                .submitLabel(.done)
+                .focused($isTitleFieldFocused)
+                .onSubmit {
+                    onSave()
+                }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Quick labels")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.secondary)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(quickTitleOptions, id: \.self) { option in
+                            Button {
+                                onQuickTitleSelected(option)
+                            } label: {
+                                Text(option)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.primary)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(Color(.secondarySystemBackground))
+                                    .clipShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+
+            Spacer()
+
+            HStack(spacing: 12) {
+                Button("Cancel", role: .cancel) {
+                    onCancel()
+                }
+                .buttonStyle(.bordered)
+
+                Button {
+                    onSave()
+                } label: {
+                    if isSaving {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        Text("Save Recording")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isSaving)
+            }
+        }
+        .padding(20)
+        .onAppear {
+            isTitleFieldFocused = true
+        }
+    }
+
+    private var quickTitleOptions: [String] {
+        [
+            suggestedTitle,
+            "Quick idea - \(durationText)",
+            "Voice memo - \(durationText)",
+            "Take - \(durationText)"
+        ]
     }
 }
 

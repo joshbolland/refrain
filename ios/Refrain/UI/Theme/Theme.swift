@@ -102,6 +102,7 @@ extension View {
             .padding(.vertical, 12)
             .background(Theme.accent)
             .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadiusSmall, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.cornerRadiusSmall, style: .continuous))
             .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 8)
     }
 
@@ -117,6 +118,7 @@ extension View {
                     .stroke(Color.white.opacity(0.85), lineWidth: 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadiusSmall, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.cornerRadiusSmall, style: .continuous))
     }
 }
 

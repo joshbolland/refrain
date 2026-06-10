@@ -36,6 +36,7 @@ final class RecordingViewModel {
     var audioLevels: [Float] = []
     var showPermissionAlert = false
     var saveErrorMessage: String?
+    var draftTitle = ""
 
     var statusText: String {
         if isRecording {
@@ -149,6 +150,7 @@ final class RecordingViewModel {
             isPaused = false
             hasRecording = true
             startTime = Date()
+            draftTitle = suggestedTitle()
 
             startTimers()
         } catch {
@@ -188,12 +190,20 @@ final class RecordingViewModel {
         hasRecording = false
         durationMs = 0
         pausedDuration = 0
+        draftTitle = ""
         audioLevels = Array(repeating: 0, count: maxLevels)
 
         stopTimers()
     }
 
-    func save(appState: AppState) async -> Recording? {
+    func prepareDraftTitleIfNeeded() {
+        let trimmedTitle = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedTitle.isEmpty {
+            draftTitle = suggestedTitle()
+        }
+    }
+
+    func save(appState: AppState, title: String) async -> Recording? {
         await MainActor.run {
             isSaving = true
             saveErrorMessage = nil
@@ -225,7 +235,8 @@ final class RecordingViewModel {
         }
 
         let recordingId = UUID().uuidString
-        let title = "Recording \(formattedDate())"
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalTitle = trimmedTitle.isEmpty ? suggestedTitle() : trimmedTitle
         do {
             let storagePath = try await recordingStorageService.uploadRecording(
                 from: url,
@@ -235,7 +246,7 @@ final class RecordingViewModel {
 
             let recording = await appState.createRecording(
                 id: recordingId,
-                title: title,
+                title: finalTitle,
                 uri: storagePath,
                 durationMs: durationMs
             )
@@ -252,6 +263,7 @@ final class RecordingViewModel {
             hasRecording = false
             durationMs = 0
             pausedDuration = 0
+            draftTitle = ""
             audioLevels = Array(repeating: 0, count: maxLevels)
 
             return recording
@@ -305,5 +317,19 @@ final class RecordingViewModel {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d, h:mm a"
         return formatter.string(from: Date())
+    }
+
+    private func suggestedTitle() -> String {
+        let baseLabel: String
+        switch durationMs {
+        case ..<30_000:
+            baseLabel = "Quick idea"
+        case ..<120_000:
+            baseLabel = "Voice memo"
+        default:
+            baseLabel = "Take"
+        }
+
+        return "\(baseLabel) - \(formattedDate())"
     }
 }

@@ -9,11 +9,10 @@ struct LyricEditorView: View {
     let file: LyricFile
 
     @State private var viewModel: EditorViewModel
-    @State private var showRhymeSuggestions = true
+    @State private var showRhymeSuggestions = false
     @State private var collectionSheetItem: LibraryItem?
     @State private var shareSheetURL: URL?
     @State private var shareErrorMessage: String?
-    @State private var previousTabBarHidden = false
     @FocusState private var isTitleFocused: Bool
 
     init(file: LyricFile) {
@@ -55,6 +54,7 @@ struct LyricEditorView: View {
                 .padding(.top, 6)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
             .background(Theme.paper)
             .ignoresSafeArea(edges: .top)
         }
@@ -80,8 +80,7 @@ struct LyricEditorView: View {
             await viewModel.startAutoSave()
         }
         .onAppear {
-            previousTabBarHidden = appState.isTabBarHidden
-            appState.isTabBarHidden = true
+            appState.setTabBarHidden(true, requester: "lyricEditor")
 
             // Auto-focus title for new files
             if viewModel.isNewFile {
@@ -91,7 +90,7 @@ struct LyricEditorView: View {
             }
         }
         .onDisappear {
-            appState.isTabBarHidden = previousTabBarHidden
+            appState.setTabBarHidden(false, requester: "lyricEditor")
         }
     }
 
