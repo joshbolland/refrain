@@ -3,22 +3,22 @@
 import { create } from 'zustand';
 
 import type {
-  Collection,
-  CollectionAssignment,
-  CollectionId,
-  CollectionItemType,
-  CollectionWithCount,
   LibraryItem,
   LyricFile,
   LyricFileId,
+  Project,
+  ProjectAssignment,
+  ProjectId,
+  ProjectItemType,
+  ProjectWithCount,
   RecordingId,
   RecordingItem,
 } from '@refrain/domain';
 
-import { collectionRepo, lyricRepo, recordingRepo, supabase } from './supabase';
+import { lyricRepo, projectRepo, recordingRepo, supabase } from './supabase';
 
 const sortFiles = (files: LyricFile[]) => [...files].sort((a, b) => b.updatedAt - a.updatedAt);
-const sortCollections = (collections: CollectionWithCount[]) => [...collections].sort((a, b) => b.updatedAt - a.updatedAt);
+const sortProjects = (projects: ProjectWithCount[]) => [...projects].sort((a, b) => b.updatedAt - a.updatedAt);
 const sortRecordings = (recordings: RecordingItem[]) => [...recordings].sort((a, b) => b.updatedAt - a.updatedAt);
 
 const generateId = () =>
@@ -26,29 +26,29 @@ const generateId = () =>
     ? crypto.randomUUID()
     : `rf-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-const applyCountsToCollections = (
-  collections: (Collection | CollectionWithCount)[],
-  assignments: CollectionAssignment[],
-): CollectionWithCount[] => {
-  const totals: Record<CollectionId, number> = {};
-  const lyricCounts: Record<CollectionId, number> = {};
-  const recordingCounts: Record<CollectionId, number> = {};
+const applyCountsToProjects = (
+  projects: (Project | ProjectWithCount)[],
+  assignments: ProjectAssignment[],
+): ProjectWithCount[] => {
+  const totals: Record<ProjectId, number> = {};
+  const lyricCounts: Record<ProjectId, number> = {};
+  const recordingCounts: Record<ProjectId, number> = {};
 
   assignments.forEach((assignment) => {
-    totals[assignment.collectionId] = (totals[assignment.collectionId] ?? 0) + 1;
+    totals[assignment.projectId] = (totals[assignment.projectId] ?? 0) + 1;
     if (assignment.itemType === 'lyric') {
-      lyricCounts[assignment.collectionId] = (lyricCounts[assignment.collectionId] ?? 0) + 1;
+      lyricCounts[assignment.projectId] = (lyricCounts[assignment.projectId] ?? 0) + 1;
     } else {
-      recordingCounts[assignment.collectionId] = (recordingCounts[assignment.collectionId] ?? 0) + 1;
+      recordingCounts[assignment.projectId] = (recordingCounts[assignment.projectId] ?? 0) + 1;
     }
   });
 
-  return sortCollections(
-    collections.map((collection) => ({
-      ...collection,
-      itemCount: totals[collection.id] ?? 0,
-      lyricCount: lyricCounts[collection.id] ?? 0,
-      recordingCount: recordingCounts[collection.id] ?? 0,
+  return sortProjects(
+    projects.map((project) => ({
+      ...project,
+      itemCount: totals[project.id] ?? 0,
+      lyricCount: lyricCounts[project.id] ?? 0,
+      recordingCount: recordingCounts[project.id] ?? 0,
     })),
   );
 };
@@ -69,22 +69,23 @@ const extensionForMime = (mimeType: string): string => {
 interface WorkspaceState {
   isInitialized: boolean;
   isLoading: boolean;
+  activeUserId: string | null;
   error: string | null;
   files: LyricFile[];
-  collections: CollectionWithCount[];
-  assignments: CollectionAssignment[];
+  projects: ProjectWithCount[];
+  assignments: ProjectAssignment[];
   recordings: RecordingItem[];
   init(): Promise<void>;
   refresh(): Promise<void>;
   createLyric(): Promise<LyricFile>;
   updateLyric(id: LyricFileId, patch: Partial<Pick<LyricFile, 'title' | 'body' | 'sectionTypes'>>): Promise<void>;
   deleteLyric(id: LyricFileId): Promise<void>;
-  createCollection(title: string, description?: string | null): Promise<Collection>;
-  renameCollection(id: CollectionId, title: string, description?: string | null): Promise<void>;
-  deleteCollection(id: CollectionId): Promise<void>;
-  toggleItemCollection(itemType: CollectionItemType, itemId: string, collectionId: CollectionId): Promise<void>;
-  collectionIdsForItem(itemType: CollectionItemType, itemId: string): CollectionId[];
-  collectionItems(collectionId: CollectionId): LibraryItem[];
+  createProject(title: string, description?: string | null): Promise<Project>;
+  renameProject(id: ProjectId, title: string, description?: string | null): Promise<void>;
+  deleteProject(id: ProjectId): Promise<void>;
+  toggleItemProject(itemType: ProjectItemType, itemId: string, projectId: ProjectId): Promise<void>;
+  projectIdsForItem(itemType: ProjectItemType, itemId: string): ProjectId[];
+  projectItems(projectId: ProjectId): LibraryItem[];
   createRecordingFromBlob(blob: Blob, durationMs: number): Promise<RecordingItem>;
   updateRecordingTitle(id: RecordingId, title: string): Promise<void>;
   deleteRecording(id: RecordingId): Promise<void>;
@@ -95,16 +96,14 @@ interface WorkspaceState {
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   isInitialized: false,
   isLoading: false,
+  activeUserId: null,
   error: null,
   files: [],
-  collections: [],
+  projects: [],
   assignments: [],
   recordings: [],
 
   async init() {
-    if (get().isInitialized) {
-      return;
-    }
     set({ isLoading: true, error: null });
     try {
       const { data, error } = await supabase.auth.getSession();
@@ -112,21 +111,42 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         throw error;
       }
       if (!data.session) {
-        set({ files: [], collections: [], assignments: [], recordings: [], isInitialized: false });
+        set({
+          files: [],
+          projects: [],
+          assignments: [],
+          recordings: [],
+          activeUserId: null,
+          isInitialized: false,
+        });
         return;
       }
-      const [files, collections, assignments, recordings] = await Promise.all([
+      const userId = data.session.user.id;
+      if (get().isInitialized && get().activeUserId === userId) {
+        return;
+      }
+      const results = await Promise.allSettled([
         lyricRepo.listFiles(),
-        collectionRepo.listCollections(),
-        collectionRepo.listAssignments(),
+        projectRepo.listProjects(),
+        projectRepo.listAssignments(),
         recordingRepo.listRecordings(),
       ]);
+      const [filesResult, projectsResult, assignmentsResult, recordingsResult] = results;
+      const errors = results
+        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+        .map((result) => (result.reason instanceof Error ? result.reason.message : 'Unknown workspace load error.'));
+      const files = filesResult.status === 'fulfilled' ? filesResult.value : [];
+      const projects = projectsResult.status === 'fulfilled' ? projectsResult.value : [];
+      const assignments = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
+      const recordings = recordingsResult.status === 'fulfilled' ? recordingsResult.value : [];
       set({
         files: sortFiles(files),
-        collections: applyCountsToCollections(collections, assignments),
+        projects: applyCountsToProjects(projects, assignments),
         assignments,
         recordings: sortRecordings(recordings),
+        activeUserId: userId,
         isInitialized: true,
+        error: errors.length ? `Some workspace data could not load: ${errors.join(' ')}` : null,
       });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to initialize workspace.' });
@@ -138,18 +158,33 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   async refresh() {
     set({ isLoading: true, error: null });
     try {
-      const [files, collections, assignments, recordings] = await Promise.all([
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        throw error;
+      }
+      const userId = data.session?.user.id ?? null;
+      const results = await Promise.allSettled([
         lyricRepo.listFiles(),
-        collectionRepo.listCollections(),
-        collectionRepo.listAssignments(),
+        projectRepo.listProjects(),
+        projectRepo.listAssignments(),
         recordingRepo.listRecordings(),
       ]);
+      const [filesResult, projectsResult, assignmentsResult, recordingsResult] = results;
+      const errors = results
+        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+        .map((result) => (result.reason instanceof Error ? result.reason.message : 'Unknown workspace refresh error.'));
+      const files = filesResult.status === 'fulfilled' ? filesResult.value : [];
+      const projects = projectsResult.status === 'fulfilled' ? projectsResult.value : [];
+      const assignments = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
+      const recordings = recordingsResult.status === 'fulfilled' ? recordingsResult.value : [];
       set({
         files: sortFiles(files),
-        collections: applyCountsToCollections(collections, assignments),
+        projects: applyCountsToProjects(projects, assignments),
         assignments,
         recordings: sortRecordings(recordings),
+        activeUserId: userId,
         isInitialized: true,
+        error: errors.length ? `Some workspace data could not refresh: ${errors.join(' ')}` : null,
       });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to refresh workspace.' });
@@ -198,92 +233,92 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       return {
         files: state.files.filter((file) => file.id !== id),
         assignments,
-        collections: applyCountsToCollections(state.collections, assignments),
+        projects: applyCountsToProjects(state.projects, assignments),
       };
     });
   },
 
-  async createCollection(title, description) {
-    const collection = await collectionRepo.createCollection({
-      title: title.trim() || 'Untitled collection',
+  async createProject(title, description) {
+    const project = await projectRepo.createProject({
+      title: title.trim() || 'Untitled project',
       description: description ?? null,
     });
     set((state) => ({
-      collections: applyCountsToCollections([collection, ...state.collections], state.assignments),
+      projects: applyCountsToProjects([project, ...state.projects], state.assignments),
     }));
-    return collection;
+    return project;
   },
 
-  async renameCollection(id, title, description) {
-    const updated = await collectionRepo.renameCollection(id, title.trim() || 'Untitled collection', description ?? null);
+  async renameProject(id, title, description) {
+    const updated = await projectRepo.renameProject(id, title.trim() || 'Untitled project', description ?? null);
     set((state) => ({
-      collections: applyCountsToCollections(
-        state.collections.map((collection) => (collection.id === id ? { ...collection, ...updated } : collection)),
+      projects: applyCountsToProjects(
+        state.projects.map((project) => (project.id === id ? { ...project, ...updated } : project)),
         state.assignments,
       ),
     }));
   },
 
-  async deleteCollection(id) {
-    await collectionRepo.deleteCollection(id);
+  async deleteProject(id) {
+    await projectRepo.deleteProject(id);
     set((state) => {
-      const assignments = state.assignments.filter((assignment) => assignment.collectionId !== id);
+      const assignments = state.assignments.filter((assignment) => assignment.projectId !== id);
       return {
         assignments,
-        collections: applyCountsToCollections(
-          state.collections.filter((collection) => collection.id !== id),
+        projects: applyCountsToProjects(
+          state.projects.filter((project) => project.id !== id),
           assignments,
         ),
       };
     });
   },
 
-  async toggleItemCollection(itemType, itemId, collectionId) {
+  async toggleItemProject(itemType, itemId, projectId) {
     const exists = get().assignments.some(
       (assignment) =>
-        assignment.collectionId === collectionId &&
+        assignment.projectId === projectId &&
         assignment.itemId === itemId &&
         assignment.itemType === itemType,
     );
     if (exists) {
-      await collectionRepo.removeItemFromCollection({ collectionId, itemId, itemType });
+      await projectRepo.removeItemFromProject({ projectId, itemId, itemType });
       set((state) => {
         const assignments = state.assignments.filter(
           (assignment) =>
             !(
-              assignment.collectionId === collectionId &&
+              assignment.projectId === projectId &&
               assignment.itemId === itemId &&
               assignment.itemType === itemType
             ),
         );
         return {
           assignments,
-          collections: applyCountsToCollections(state.collections, assignments),
+          projects: applyCountsToProjects(state.projects, assignments),
         };
       });
       return;
     }
 
-    const assignment = await collectionRepo.addItemToCollection({ collectionId, itemId, itemType });
+    const assignment = await projectRepo.addItemToProject({ projectId, itemId, itemType });
     set((state) => {
       const assignments = [assignment, ...state.assignments];
       return {
         assignments,
-        collections: applyCountsToCollections(state.collections, assignments),
+        projects: applyCountsToProjects(state.projects, assignments),
       };
     });
   },
 
-  collectionIdsForItem(itemType, itemId) {
+  projectIdsForItem(itemType, itemId) {
     return get()
       .assignments.filter((assignment) => assignment.itemType === itemType && assignment.itemId === itemId)
-      .map((assignment) => assignment.collectionId);
+      .map((assignment) => assignment.projectId);
   },
 
-  collectionItems(collectionId) {
+  projectItems(projectId) {
     const { assignments, files, recordings } = get();
     return assignments
-      .filter((assignment) => assignment.collectionId === collectionId)
+      .filter((assignment) => assignment.projectId === projectId)
       .map<LibraryItem | null>((assignment) => {
         if (assignment.itemType === 'lyric') {
           const lyric = files.find((file) => file.id === assignment.itemId);
@@ -348,7 +383,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       return {
         recordings: state.recordings.filter((recording) => recording.id !== id),
         assignments,
-        collections: applyCountsToCollections(state.collections, assignments),
+        projects: applyCountsToProjects(state.projects, assignments),
       };
     });
   },

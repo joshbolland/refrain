@@ -8,11 +8,16 @@ export function SettingsWorkspace() {
     user: state.user,
     signOut: state.signOut,
   }));
-  const { files, recordings, collections } = useWorkspaceStore((state) => ({
+  const { files, recordings, projects } = useWorkspaceStore((state) => ({
     files: state.files,
     recordings: state.recordings,
-    collections: state.collections,
+    projects: state.projects,
   }));
+  const providers =
+    user?.identities
+      ?.map((identity) => identity.provider)
+      .filter(Boolean)
+      .join(', ') || 'Unknown provider';
 
   return (
     <section className="grid h-full min-h-[78vh] gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -23,7 +28,7 @@ export function SettingsWorkspace() {
           {[
             ['Lyrics', files.length.toString()],
             ['Recordings', recordings.length.toString()],
-            ['Collections', collections.length.toString()],
+            ['Projects', projects.length.toString()],
           ].map(([label, value]) => (
             <div key={label} className="rounded-[24px] border border-divider bg-paper p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted/70">{label}</p>
@@ -39,6 +44,16 @@ export function SettingsWorkspace() {
         <p className="mt-3 text-sm text-muted/80">
           Email/password and Google sign-in are supported on web in this first desktop release.
         </p>
+        <div className="mt-5 space-y-3 rounded-2xl border border-divider bg-paper p-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted/70">Provider</p>
+            <p className="mt-1 text-sm font-semibold text-ink">{providers}</p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted/70">User ID</p>
+            <p className="mt-1 break-all font-mono text-xs text-muted">{user?.id ?? 'Unknown'}</p>
+          </div>
+        </div>
         <button
           type="button"
           onClick={() => void signOut()}

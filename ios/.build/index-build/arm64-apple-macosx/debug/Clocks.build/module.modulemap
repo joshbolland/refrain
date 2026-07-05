@@ -1,4 +1,0 @@
-module Clocks {
-    header "/Users/joshbolland/Documents/code/refrain/ios/.build/index-build/arm64-apple-macosx/debug/Clocks.build/Clocks-Swift.h"
-    requires objc
-}

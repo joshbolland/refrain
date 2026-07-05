@@ -8,7 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@refrain/domain": "*",
+    "@refrain/domain": "workspace:*",
     "@supabase/supabase-js": "^2.49.0"
   }
 }

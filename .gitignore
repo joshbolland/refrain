@@ -3,12 +3,6 @@
 # dependencies
 node_modules/
 
-# Expo
-.expo/
-dist/
-web-build/
-expo-env.d.ts
-
 # Native
 .kotlin/
 *.orig.*
@@ -18,13 +12,11 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
-# Metro
-.metro-health-check*
-
 # debug
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+pnpm-debug.*
 
 # macOS
 .DS_Store
@@ -40,14 +32,14 @@ yarn-error.*
 app-example
 
 # iOS Swift
-ios/.build/
-ios/Refrain.xcodeproj/xcuserdata/
-ios/Refrain.xcodeproj/project.xcworkspace/xcuserdata/
-ios/*.xcuserstate
-ios/DerivedData/
-ios/build/
-ios/Pods/
-ios/Podfile.lock
+apps/ios/.build/
+apps/ios/Refrain.xcodeproj/xcuserdata/
+apps/ios/Refrain.xcodeproj/project.xcworkspace/xcuserdata/
+apps/ios/*.xcuserstate
+apps/ios/DerivedData/
+apps/ios/build/
+apps/ios/Pods/
+apps/ios/Podfile.lock
 *.ipa
 *.dSYM.zip
 *.dSYM
@@ -69,6 +61,5 @@ DerivedData/
 
 # App build output
 apps/*/.next/
-apps/*/ios/.build/
 
 AGENT_RULES.md

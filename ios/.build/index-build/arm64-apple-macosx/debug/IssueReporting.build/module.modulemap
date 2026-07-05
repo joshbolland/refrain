@@ -1,4 +1,0 @@
-module IssueReporting {
-    header "/Users/joshbolland/Documents/code/refrain/ios/.build/index-build/arm64-apple-macosx/debug/IssueReporting.build/IssueReporting-Swift.h"
-    requires objc
-}

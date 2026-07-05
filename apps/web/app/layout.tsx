@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 
 export const metadata = {
   title: 'Refrain Web',
-  description: 'Desktop workspace for lyrics, collections, and recordings.',
+  description: 'Desktop workspace for lyrics, projects, and recordings.',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

@@ -1,4 +1,0 @@
-module RefrainCore {
-    header "/Users/joshbolland/Documents/code/refrain/ios/.build/index-build/arm64-apple-macosx/debug/RefrainCore.build/RefrainCore-Swift.h"
-    requires objc
-}

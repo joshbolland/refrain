@@ -6,17 +6,20 @@ export const colors = {
   accent: '#9dacff',
   accentPressed: '#7c8fff',
   accentSoft: '#eef0ff',
-  divider: '#e5e7eb',
+  divider: '#e3e5f0',
   canvas: '#fafaf7',
+  header: '#e8ebff',
+  headerTitle: '#2b3550',
+  headerSubtitle: '#5e6b8c',
   danger: '#e71d36',
   success: '#1f9d55',
 } as const;
 
 export const radii = {
-  card: 24,
+  card: 18,
   pill: 999,
   input: 16,
-  shell: 32,
+  shell: 24,
 } as const;
 
 export const spacing = {
@@ -41,6 +44,6 @@ export const fontStacks = {
 
 export const assets = {
   splash: 'splash.jpg',
-  favicon: 'favicon.png',
-  icon: 'icon.png',
+  bird: 'refrain-bird.png',
+  authBackground: 'refrain-auth-background.png',
 } as const;

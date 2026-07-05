@@ -6,13 +6,16 @@
   --rf-color-accent: #9dacff;
   --rf-color-accent-pressed: #7c8fff;
   --rf-color-accent-soft: #eef0ff;
-  --rf-color-divider: #e5e7eb;
+  --rf-color-divider: #e3e5f0;
   --rf-color-canvas: #fafaf7;
+  --rf-color-header: #e8ebff;
+  --rf-color-header-title: #2b3550;
+  --rf-color-header-subtitle: #5e6b8c;
   --rf-color-danger: #e71d36;
   --rf-color-success: #1f9d55;
-  --rf-radius-card: 24px;
+  --rf-radius-card: 18px;
   --rf-radius-pill: 999px;
-  --rf-radius-shell: 32px;
+  --rf-radius-shell: 24px;
   --rf-shadow-soft: 0 18px 40px rgba(17, 24, 39, 0.08);
   --rf-shadow-float: 0 24px 60px rgba(17, 24, 39, 0.12);
   --rf-font-sans: 'Avenir Next', 'Segoe UI', sans-serif;
@@ -22,9 +25,7 @@
 
 html,
 body {
-  background:
-    radial-gradient(circle at top left, rgba(157, 172, 255, 0.24), transparent 28%),
-    linear-gradient(180deg, #fcfcfa 0%, #f6f3ee 100%);
+  background: var(--rf-color-canvas);
   color: var(--rf-color-ink);
   font-family: var(--rf-font-sans);
 }

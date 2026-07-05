@@ -6,6 +6,13 @@ import type {
   CollectionWithCount,
 } from './collection';
 import type { LyricFile, LyricFileId } from './lyricFile';
+import type {
+  Project,
+  ProjectAssignment,
+  ProjectId,
+  ProjectItemType,
+  ProjectWithCount,
+} from './project';
 import type { RecordingId, RecordingItem } from './recording';
 
 export interface LyricRepository {
@@ -34,6 +41,27 @@ export interface CollectionRepository {
   removeItemFromCollection(payload: {
     collectionId: CollectionId;
     itemType: CollectionItemType;
+    itemId: string;
+  }): Promise<void>;
+}
+
+export interface ProjectRepository {
+  init(): Promise<void>;
+  listProjects(): Promise<ProjectWithCount[]>;
+  listAssignments(): Promise<ProjectAssignment[]>;
+  listProjectItems(projectId: ProjectId): Promise<ProjectAssignment[]>;
+  listItemProjects(itemType: ProjectItemType, itemId: string): Promise<ProjectId[]>;
+  createProject(payload: { title: string; description?: string | null }): Promise<Project>;
+  renameProject(id: ProjectId, title: string, description?: string | null): Promise<Project>;
+  deleteProject(id: ProjectId): Promise<void>;
+  addItemToProject(payload: {
+    projectId: ProjectId;
+    itemType: ProjectItemType;
+    itemId: string;
+  }): Promise<ProjectAssignment>;
+  removeItemFromProject(payload: {
+    projectId: ProjectId;
+    itemType: ProjectItemType;
     itemId: string;
   }): Promise<void>;
 }

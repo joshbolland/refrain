@@ -10,6 +10,10 @@ import type {
   Database,
   LyricFile,
   LyricRepository,
+  Project,
+  ProjectAssignment,
+  ProjectRepository,
+  ProjectWithCount,
   RecordingItem,
   RecordingRepository,
   RecordingUploadPayload,
@@ -35,17 +39,7 @@ type CollectionItemRow = Pick<
 type CollectionIdRow = Pick<Database['public']['Tables']['collection_items']['Row'], 'collection_id'>;
 type RecordingRow = Pick<
   Database['public']['Tables']['recordings']['Row'],
-  | 'id'
-  | 'title'
-  | 'duration_ms'
-  | 'uri'
-  | 'local_uri'
-  | 'storage_bucket'
-  | 'storage_path'
-  | 'mime_type'
-  | 'sync_status'
-  | 'created_at'
-  | 'updated_at'
+  'id' | 'title' | 'duration_ms' | 'uri' | 'created_at' | 'updated_at'
 >;
 
 const handleError = (error: PostgrestError | null) => {
@@ -86,8 +80,26 @@ const mapCollectionRow = (row: CollectionRow): CollectionWithCount => ({
   recordingCount: 0,
 });
 
+const mapProjectRow = (row: CollectionRow): ProjectWithCount => ({
+  id: row.id,
+  title: row.title ?? '',
+  description: row.description,
+  createdAt: new Date(row.created_at).getTime(),
+  updatedAt: new Date(row.updated_at).getTime(),
+  itemCount: 0,
+  lyricCount: 0,
+  recordingCount: 0,
+});
+
 const mapAssignmentRow = (row: CollectionItemRow): CollectionAssignment => ({
   collectionId: row.collection_id,
+  itemId: row.item_id,
+  itemType: row.item_type,
+  createdAt: new Date(row.created_at).getTime(),
+});
+
+const mapProjectAssignmentRow = (row: CollectionItemRow): ProjectAssignment => ({
+  projectId: row.collection_id,
   itemId: row.item_id,
   itemType: row.item_type,
   createdAt: new Date(row.created_at).getTime(),
@@ -99,12 +111,11 @@ const mapRecordingRow = (row: RecordingRow): RecordingItem => ({
   createdAt: new Date(row.created_at).getTime(),
   updatedAt: new Date(row.updated_at).getTime(),
   durationMs: row.duration_ms ?? 0,
-  storageBucket: row.storage_bucket ?? null,
-  storagePath: row.storage_path ?? null,
-  mimeType: row.mime_type ?? null,
-  localUri: row.local_uri ?? row.uri ?? null,
-  syncStatus:
-    row.sync_status ?? (row.storage_bucket && row.storage_path ? 'ready' : row.local_uri || row.uri ? 'needs-reupload' : 'ready'),
+  storageBucket: row.uri ? DEFAULT_RECORDINGS_BUCKET : null,
+  storagePath: row.uri ?? null,
+  mimeType: null,
+  localUri: null,
+  syncStatus: row.uri ? 'ready' : 'needs-reupload',
 });
 
 export const createSupabaseLyricRepository = (client: RefrainSupabaseClient): LyricRepository => ({
@@ -317,6 +328,153 @@ export const createSupabaseCollectionRepository = (client: RefrainSupabaseClient
   },
 });
 
+export const createSupabaseProjectRepository = (client: RefrainSupabaseClient): ProjectRepository => ({
+  async init() {},
+
+  async listProjects() {
+    const userId = await getUserIdOrThrow(client, 'project');
+    const { data, error } = await client
+      .from('collections')
+      .select('id, title, description, created_at, updated_at')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false });
+    handleError(error);
+    return (data ?? []).map(mapProjectRow);
+  },
+
+  async listAssignments() {
+    const userId = await getUserIdOrThrow(client, 'project');
+    const { data, error } = await client
+      .from('collection_items')
+      .select('collection_id, item_id, item_type, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    handleError(error);
+    return (data ?? []).map(mapProjectAssignmentRow);
+  },
+
+  async listProjectItems(projectId) {
+    const userId = await getUserIdOrThrow(client, 'project');
+    const { data, error } = await client
+      .from('collection_items')
+      .select('collection_id, item_id, item_type, created_at')
+      .eq('user_id', userId)
+      .eq('collection_id', projectId)
+      .order('created_at', { ascending: false });
+    handleError(error);
+    return (data ?? []).map(mapProjectAssignmentRow);
+  },
+
+  async listItemProjects(itemType, itemId) {
+    const userId = await getUserIdOrThrow(client, 'project');
+    const { data, error } = await client
+      .from('collection_items')
+      .select('collection_id')
+      .eq('user_id', userId)
+      .eq('item_type', itemType)
+      .eq('item_id', itemId);
+    handleError(error);
+    return (data ?? []).map((row: CollectionIdRow) => row.collection_id);
+  },
+
+  async createProject(payload) {
+    const userId = await getUserIdOrThrow(client, 'project');
+    const now = new Date().toISOString();
+    const { data, error } = await client
+      .from('collections')
+      .insert({
+        user_id: userId,
+        title: payload.title,
+        description: payload.description ?? null,
+        created_at: now,
+        updated_at: now,
+      })
+      .select('id, title, description, created_at, updated_at')
+      .maybeSingle();
+    handleError(error);
+    if (!data) {
+      throw new Error('Failed to create project.');
+    }
+    const project: Project = {
+      id: data.id,
+      title: data.title ?? '',
+      description: data.description,
+      createdAt: new Date(data.created_at).getTime(),
+      updatedAt: new Date(data.updated_at).getTime(),
+    };
+    return project;
+  },
+
+  async renameProject(id, title, description) {
+    const userId = await getUserIdOrThrow(client, 'project');
+    const now = new Date().toISOString();
+    const { data, error } = await client
+      .from('collections')
+      .update({
+        title,
+        description: description ?? null,
+        updated_at: now,
+      })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select('id, title, description, created_at, updated_at')
+      .maybeSingle();
+    handleError(error);
+    if (!data) {
+      throw new Error('Project not found.');
+    }
+    return {
+      id: data.id,
+      title: data.title ?? '',
+      description: data.description,
+      createdAt: new Date(data.created_at).getTime(),
+      updatedAt: new Date(data.updated_at).getTime(),
+    };
+  },
+
+  async deleteProject(id) {
+    const userId = await getUserIdOrThrow(client, 'project');
+    const { error } = await client.from('collections').delete().eq('id', id).eq('user_id', userId);
+    handleError(error);
+  },
+
+  async addItemToProject({ projectId, itemId, itemType }) {
+    const userId = await getUserIdOrThrow(client, 'project');
+    const now = new Date().toISOString();
+    const { error } = await client.from('collection_items').upsert(
+      {
+        user_id: userId,
+        collection_id: projectId,
+        item_id: itemId,
+        item_type: itemType,
+        created_at: now,
+      },
+      { onConflict: 'collection_id,item_type,item_id', ignoreDuplicates: true },
+    );
+    if (error && error.code !== '23505') {
+      handleError(error);
+    }
+    return {
+      projectId,
+      itemId,
+      itemType,
+      createdAt: new Date(now).getTime(),
+    };
+  },
+
+  async removeItemFromProject({ projectId, itemId, itemType }) {
+    const userId = await getUserIdOrThrow(client, 'project');
+    const { error } = await client
+      .from('collection_items')
+      .delete()
+      .eq('collection_id', projectId)
+      .eq('item_id', itemId)
+      .eq('item_type', itemType)
+      .eq('user_id', userId);
+    handleError(error);
+  },
+});
+
 interface CreateRecordingRepositoryOptions {
   bucket?: string;
 }
@@ -334,9 +492,7 @@ export const createSupabaseRecordingRepository = (
       const userId = await getUserIdOrThrow(client, 'recording');
       const { data, error } = await client
         .from('recordings')
-        .select(
-          'id, title, duration_ms, uri, local_uri, storage_bucket, storage_path, mime_type, sync_status, created_at, updated_at',
-        )
+        .select('id, title, duration_ms, uri, created_at, updated_at')
         .eq('user_id', userId)
         .order('updated_at', { ascending: false });
       handleError(error);
@@ -351,12 +507,7 @@ export const createSupabaseRecordingRepository = (
           user_id: userId,
           title: recording.title ?? '',
           duration_ms: recording.durationMs ?? 0,
-          uri: recording.localUri ?? null,
-          local_uri: recording.localUri ?? null,
-          storage_bucket: recording.storageBucket,
-          storage_path: recording.storagePath,
-          mime_type: recording.mimeType,
-          sync_status: recording.syncStatus,
+          uri: recording.storagePath ?? recording.localUri ?? null,
           created_at: new Date(recording.createdAt).toISOString(),
           updated_at: new Date(recording.updatedAt).toISOString(),
         },
@@ -368,7 +519,8 @@ export const createSupabaseRecordingRepository = (
     async uploadMedia(payload) {
       const userId = await getUserIdOrThrow(client, 'recording');
       const createdAt = payload.createdAt ?? Date.now();
-      const path = `${userId}/${createdAt}-${payload.recordingId}.${payload.extension.replace(/^\./, '')}`;
+      const extension = payload.extension.replace(/^\./, '') || 'm4a';
+      const path = `users/${userId.toLowerCase()}/${payload.recordingId}.${extension}`;
       const { error } = await client.storage.from(bucket).upload(path, payload.data, {
         upsert: true,
         contentType: payload.contentType,

@@ -18,6 +18,9 @@ module.exports = {
         accentSoft: 'var(--rf-color-accent-soft)',
         divider: 'var(--rf-color-divider)',
         canvas: 'var(--rf-color-canvas)',
+        header: 'var(--rf-color-header)',
+        headerTitle: 'var(--rf-color-header-title)',
+        headerSubtitle: 'var(--rf-color-header-subtitle)',
         danger: 'var(--rf-color-danger)',
       },
       boxShadow: {

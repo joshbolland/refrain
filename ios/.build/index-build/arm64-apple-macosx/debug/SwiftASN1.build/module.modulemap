@@ -1,4 +1,0 @@
-module SwiftASN1 {
-    header "/Users/joshbolland/Documents/code/refrain/ios/.build/index-build/arm64-apple-macosx/debug/SwiftASN1.build/SwiftASN1-Swift.h"
-    requires objc
-}

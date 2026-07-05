@@ -1,0 +1,12 @@
+{
+  "name": "refrain",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.2",
+  "scripts": {
+    "dev:web": "pnpm --filter @refrain/web dev",
+    "build:web": "pnpm --filter @refrain/web build",
+    "typecheck": "pnpm --recursive typecheck",
+    "lint": "pnpm --filter @refrain/web lint"
+  }
+}
