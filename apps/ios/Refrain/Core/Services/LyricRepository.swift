@@ -58,7 +58,7 @@ final class LyricRepository: Sendable {
 
         try await supabase
             .from(tableName)
-            .update(file.toInsertRow(userId: userId))
+            .update(file.toUpdateRow())
             .eq("id", value: file.id)
             .eq("user_id", value: userId)
             .execute()

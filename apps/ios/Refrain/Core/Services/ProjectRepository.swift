@@ -59,7 +59,7 @@ final class ProjectRepository: Sendable {
 
         try await supabase
             .from(tableName)
-            .update(project.toInsertRow(userId: userId))
+            .update(project.toUpdateRow())
             .eq("id", value: project.id)
             .eq("user_id", value: userId)
             .execute()

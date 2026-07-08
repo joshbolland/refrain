@@ -542,7 +542,13 @@ final class AppState {
     }
 
     func updateLyricFile(_ file: LyricFile) async {
+        guard let existing = lyricFiles.first(where: { $0.id == file.id }),
+              !file.hasSameEditableContent(as: existing) else {
+            return
+        }
+
         var updated = file
+        updated.createdAt = existing.createdAt
         updated.updatedAt = Date()
         let finalUpdated = updated
 
@@ -627,7 +633,13 @@ final class AppState {
     }
 
     func updateRecording(_ recording: Recording) async {
+        guard let existing = recordings.first(where: { $0.id == recording.id }),
+              !recording.hasSameEditableContent(as: existing) else {
+            return
+        }
+
         var updated = recording
+        updated.createdAt = existing.createdAt
         updated.updatedAt = Date()
         let finalUpdated = updated
 
@@ -802,7 +814,13 @@ final class AppState {
     }
 
     func updateProject(_ project: Project) async {
+        guard let existing = projects.first(where: { $0.id == project.id }),
+              !project.hasSameEditableContent(as: existing) else {
+            return
+        }
+
         var updated = project
+        updated.createdAt = existing.createdAt
         updated.updatedAt = Date()
         let finalUpdated = updated
 

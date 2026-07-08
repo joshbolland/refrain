@@ -69,25 +69,46 @@ extension Recording {
         let user_id: String
     }
 
+    struct UpdateRow: Codable {
+        let title: String
+        let updated_at: String
+        let duration_ms: Int
+        let uri: String
+    }
+
     init(from row: DatabaseRow) {
         self.id = row.id
         self.title = row.title
-        self.createdAt = ISO8601DateFormatter().date(from: row.created_at) ?? Date()
-        self.updatedAt = ISO8601DateFormatter().date(from: row.updated_at) ?? Date()
+        self.createdAt = SupabaseTimestampCodec.decode(row.created_at)
+        self.updatedAt = SupabaseTimestampCodec.decode(row.updated_at, fallback: createdAt)
         self.durationMs = row.duration_ms
         self.uri = row.uri
     }
 
     func toInsertRow(userId: String) -> InsertRow {
-        let formatter = ISO8601DateFormatter()
         return InsertRow(
             id: id,
             title: title,
-            created_at: formatter.string(from: createdAt),
-            updated_at: formatter.string(from: updatedAt),
+            created_at: SupabaseTimestampCodec.encode(createdAt),
+            updated_at: SupabaseTimestampCodec.encode(updatedAt),
             duration_ms: durationMs,
             uri: uri,
             user_id: userId
         )
+    }
+
+    func toUpdateRow() -> UpdateRow {
+        UpdateRow(
+            title: title,
+            updated_at: SupabaseTimestampCodec.encode(updatedAt),
+            duration_ms: durationMs,
+            uri: uri
+        )
+    }
+
+    func hasSameEditableContent(as other: Recording) -> Bool {
+        title == other.title &&
+        durationMs == other.durationMs &&
+        uri == other.uri
     }
 }

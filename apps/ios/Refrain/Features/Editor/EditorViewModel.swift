@@ -48,6 +48,8 @@ final class EditorViewModel {
     // MARK: - Internal State
 
     private let fileId: String
+    private let createdAt: Date
+    private let initialUpdatedAt: Date
     private var isDirty = false
     private var saveTask: Task<Void, Never>?
     private let debounceInterval: TimeInterval = 0.5
@@ -58,6 +60,8 @@ final class EditorViewModel {
 
     init(file: LyricFile) {
         self.fileId = file.id
+        self.createdAt = file.createdAt
+        self.initialUpdatedAt = file.updatedAt
         self.title = file.title
         self.body = file.body
         self.sectionTypes = file.sectionTypes
@@ -97,8 +101,8 @@ final class EditorViewModel {
             id: fileId,
             title: title,
             body: body,
-            createdAt: Date(), // Will be preserved by update
-            updatedAt: Date(),
+            createdAt: createdAt,
+            updatedAt: initialUpdatedAt,
             sectionTypes: sectionTypes
         )
 

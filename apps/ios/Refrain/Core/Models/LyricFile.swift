@@ -90,12 +90,19 @@ extension LyricFile {
         let user_id: String
     }
 
+    struct UpdateRow: Codable {
+        let title: String
+        let body: String
+        let updated_at: String
+        let section_types: [String: String]
+    }
+
     init(from row: DatabaseRow) {
         self.id = row.id
         self.title = row.title
         self.body = row.body
-        self.createdAt = ISO8601DateFormatter().date(from: row.created_at) ?? Date()
-        self.updatedAt = ISO8601DateFormatter().date(from: row.updated_at) ?? Date()
+        self.createdAt = SupabaseTimestampCodec.decode(row.created_at)
+        self.updatedAt = SupabaseTimestampCodec.decode(row.updated_at, fallback: createdAt)
 
         var sections: [Int: SectionType] = [:]
         if let sectionTypesDict = row.section_types {
@@ -109,20 +116,35 @@ extension LyricFile {
     }
 
     func toInsertRow(userId: String) -> InsertRow {
-        let formatter = ISO8601DateFormatter()
-        var sectionTypesDict: [String: String] = [:]
-        for (key, value) in sectionTypes {
-            sectionTypesDict[String(key)] = value.rawValue
-        }
-
         return InsertRow(
             id: id,
             title: title,
             body: body,
-            created_at: formatter.string(from: createdAt),
-            updated_at: formatter.string(from: updatedAt),
-            section_types: sectionTypesDict,
+            created_at: SupabaseTimestampCodec.encode(createdAt),
+            updated_at: SupabaseTimestampCodec.encode(updatedAt),
+            section_types: databaseSectionTypes,
             user_id: userId
         )
+    }
+
+    func toUpdateRow() -> UpdateRow {
+        UpdateRow(
+            title: title,
+            body: body,
+            updated_at: SupabaseTimestampCodec.encode(updatedAt),
+            section_types: databaseSectionTypes
+        )
+    }
+
+    func hasSameEditableContent(as other: LyricFile) -> Bool {
+        title == other.title &&
+        body == other.body &&
+        sectionTypes == other.sectionTypes
+    }
+
+    private var databaseSectionTypes: [String: String] {
+        Dictionary(uniqueKeysWithValues: sectionTypes.map { key, value in
+            (String(key), value.rawValue)
+        })
     }
 }

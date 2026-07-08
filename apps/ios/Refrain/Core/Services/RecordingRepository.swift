@@ -58,7 +58,7 @@ final class RecordingRepository: Sendable {
 
         try await supabase
             .from(tableName)
-            .update(recording.toInsertRow(userId: userId))
+            .update(recording.toUpdateRow())
             .eq("id", value: recording.id)
             .eq("user_id", value: userId)
             .execute()

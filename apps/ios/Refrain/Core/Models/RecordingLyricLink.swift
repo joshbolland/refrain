@@ -50,17 +50,16 @@ extension RecordingLyricLink {
         self.id = row.id
         self.recordingId = row.recording_id
         self.lyricFileId = row.lyric_file_id
-        self.createdAt = ISO8601DateFormatter().date(from: row.created_at) ?? Date()
+        self.createdAt = SupabaseTimestampCodec.decode(row.created_at)
     }
 
     func toInsertRow(userId: String) -> InsertRow {
-        let formatter = ISO8601DateFormatter()
         return InsertRow(
             id: id,
             user_id: userId,
             recording_id: recordingId,
             lyric_file_id: lyricFileId,
-            created_at: formatter.string(from: createdAt)
+            created_at: SupabaseTimestampCodec.encode(createdAt)
         )
     }
 }
