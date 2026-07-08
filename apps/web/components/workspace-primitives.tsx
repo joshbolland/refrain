@@ -88,7 +88,7 @@ export function ToolbarIconButton({
       title={label}
       aria-label={label}
       className={cx(
-        'inline-flex h-9 w-9 items-center justify-center rounded-xl border text-sm transition disabled:cursor-not-allowed disabled:opacity-50',
+        'inline-flex size-9 items-center justify-center rounded-lg border text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-50',
         variant === 'primary' && 'border-accent bg-accent text-white hover:bg-accentPressed',
         variant === 'secondary' && 'border-divider bg-paper text-muted hover:border-accent hover:text-ink',
         variant === 'danger' && 'border-divider bg-paper text-muted hover:border-danger hover:text-danger',
@@ -141,15 +141,15 @@ export function SegmentedControl<T extends string>({
   className?: string;
 }) {
   return (
-    <div className={cx('grid rounded-xl border border-divider bg-canvas p-1', className)}>
+    <div className={cx('grid overflow-hidden rounded-lg border border-divider bg-paper', className)}>
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
           onClick={() => onChange(option.value)}
           className={cx(
-            'rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition',
-            value === option.value ? 'bg-paper text-accentPressed shadow-soft' : 'text-muted hover:text-ink',
+            'min-h-11 border-r border-divider px-3 py-2 text-sm font-medium transition last:border-r-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent md:min-h-9 md:text-xs',
+            value === option.value ? 'bg-accentSoft text-accentPressed' : 'text-muted hover:bg-canvas hover:text-ink',
           )}
         >
           {option.label}
@@ -179,24 +179,24 @@ export function NativeListRow({
       type="button"
       onClick={onClick}
       className={cx(
-        'flex w-full items-start gap-3 rounded-2xl border px-3 py-3 text-left transition',
-        active ? 'border-accent/50 bg-accentSoft' : 'border-transparent bg-transparent hover:border-divider hover:bg-paper',
+        'flex w-full items-center gap-3 border-b border-divider px-5 py-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent',
+        active ? 'bg-accentSoft' : 'bg-transparent hover:bg-canvas',
       )}
     >
       {icon ? (
         <span
           className={cx(
-            'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
-            active ? 'bg-paper text-accentPressed' : 'bg-panel text-muted',
+            'flex size-11 shrink-0 items-center justify-center rounded-lg border md:size-9',
+            active ? 'border-accent/30 bg-paper text-accentPressed' : 'border-divider bg-paper text-muted',
           )}
         >
           {icon}
         </span>
       ) : null}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-ink">{title}</span>
+        <span className="block truncate text-base font-medium text-ink md:text-sm">{title}</span>
         {subtitle ? (
-          <span className="mt-1 block max-h-10 overflow-hidden text-sm leading-5 text-muted/80 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+          <span className="mt-1 block truncate text-[13px] leading-5 text-muted/70 md:text-xs">
             {subtitle}
           </span>
         ) : null}
