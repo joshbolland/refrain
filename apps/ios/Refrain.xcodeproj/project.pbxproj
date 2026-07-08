@@ -71,6 +71,11 @@
 		B10000000000000000000004 /* SectionAnalyzerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000004 /* SectionAnalyzerTests.swift */; };
 		B10000000000000000000005 /* SyllableCounterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000005 /* SyllableCounterTests.swift */; };
 		B10000000000000000000006 /* LyricEditorViewportPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000006 /* LyricEditorViewportPolicyTests.swift */; };
+		C10000000000000000000001 /* RecordingLyricLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000001 /* RecordingLyricLink.swift */; };
+		C10000000000000000000002 /* RecordingLyricLinkRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000002 /* RecordingLyricLinkRepository.swift */; };
+		C10000000000000000000003 /* LinkItemSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000003 /* LinkItemSheet.swift */; };
+		C10000000000000000000004 /* LinkedCounterpartStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000004 /* LinkedCounterpartStrip.swift */; };
+		C10000000000000000000005 /* RecordingLyricLinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000005 /* RecordingLyricLinkTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -173,6 +178,11 @@
 		B20000000000000000000004 /* SectionAnalyzerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionAnalyzerTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000005 /* SyllableCounterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyllableCounterTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000006 /* LyricEditorViewportPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricEditorViewportPolicyTests.swift; sourceTree = "<group>"; };
+		C20000000000000000000001 /* RecordingLyricLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingLyricLink.swift; sourceTree = "<group>"; };
+		C20000000000000000000002 /* RecordingLyricLinkRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingLyricLinkRepository.swift; sourceTree = "<group>"; };
+		C20000000000000000000003 /* LinkItemSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkItemSheet.swift; sourceTree = "<group>"; };
+		C20000000000000000000004 /* LinkedCounterpartStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkedCounterpartStrip.swift; sourceTree = "<group>"; };
+		C20000000000000000000005 /* RecordingLyricLinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingLyricLinkTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -304,6 +314,7 @@
 				10000000000000000000001B /* LibraryView.swift */,
 				10000000000000000000001C /* LibraryFilterSheet.swift */,
 				381D28AC2F8453AB00BEEE35 /* LyricScanReviewSheet.swift */,
+				C20000000000000000000003 /* LinkItemSheet.swift */,
 			);
 			path = Library;
 			sourceTree = "<group>";
@@ -348,6 +359,7 @@
 			children = (
 				100000000000000000000006 /* LyricFile.swift */,
 				100000000000000000000007 /* Recording.swift */,
+				C20000000000000000000001 /* RecordingLyricLink.swift */,
 				100000000000000000000008 /* Project.swift */,
 				100000000000000000000009 /* LibraryItem.swift */,
 				10000000000000000000000A /* User.swift */,
@@ -363,6 +375,7 @@
 				10000000000000000000000D /* LyricRepository.swift */,
 				10000000000000000000000E /* RecordingRepository.swift */,
 				10000000000000000000000F /* ProjectRepository.swift */,
+				C20000000000000000000002 /* RecordingLyricLinkRepository.swift */,
 				10000000000000000000002B /* WebAuthenticationSession.swift */,
 				38EBF3232F79478A00B68136 /* RecordingStorageService.swift */,
 				A20000000000000000000002 /* SharedImportStore.swift */,
@@ -399,6 +412,7 @@
 				100000000000000000000018 /* SaveStatusIndicator.swift */,
 				10000000000000000000002C /* UserAvatar.swift */,
 				38EBF3272F79D73800B68136 /* AppBackButton.swift */,
+				C20000000000000000000004 /* LinkedCounterpartStrip.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -439,6 +453,7 @@
 				B20000000000000000000004 /* SectionAnalyzerTests.swift */,
 				B20000000000000000000005 /* SyllableCounterTests.swift */,
 				B20000000000000000000006 /* LyricEditorViewportPolicyTests.swift */,
+				C20000000000000000000005 /* RecordingLyricLinkTests.swift */,
 			);
 			path = RefrainTests;
 			sourceTree = "<group>";
@@ -590,6 +605,7 @@
 				000000000000000000000004 /* AppState.swift in Sources */,
 				000000000000000000000006 /* LyricFile.swift in Sources */,
 				000000000000000000000007 /* Recording.swift in Sources */,
+				C10000000000000000000001 /* RecordingLyricLink.swift in Sources */,
 				38EBF3262F79B68400B68136 /* SongwritingAnalysisPanel.swift in Sources */,
 				000000000000000000000008 /* Project.swift in Sources */,
 				000000000000000000000009 /* LibraryItem.swift in Sources */,
@@ -600,6 +616,7 @@
 				00000000000000000000000D /* LyricRepository.swift in Sources */,
 				00000000000000000000000E /* RecordingRepository.swift in Sources */,
 				00000000000000000000000F /* ProjectRepository.swift in Sources */,
+				C10000000000000000000002 /* RecordingLyricLinkRepository.swift in Sources */,
 				000000000000000000000010 /* SectionAnalyzer.swift in Sources */,
 				000000000000000000000011 /* SyllableCounter.swift in Sources */,
 				000000000000000000000012 /* LineParser.swift in Sources */,
@@ -611,9 +628,11 @@
 				000000000000000000000018 /* SaveStatusIndicator.swift in Sources */,
 				000000000000000000000019 /* LoginView.swift in Sources */,
 				00000000000000000000001B /* LibraryView.swift in Sources */,
+				C10000000000000000000003 /* LinkItemSheet.swift in Sources */,
 				38EBF3242F79478B00B68136 /* RecordingStorageService.swift in Sources */,
 				00000000000000000000001C /* LibraryFilterSheet.swift in Sources */,
 				38EBF3282F79D73800B68136 /* AppBackButton.swift in Sources */,
+				C10000000000000000000004 /* LinkedCounterpartStrip.swift in Sources */,
 				00000000000000000000001D /* LyricEditorView.swift in Sources */,
 				00000000000000000000001E /* EditorViewModel.swift in Sources */,
 				381A84102F78879B00ED3591 /* PreviewSupport.swift in Sources */,
@@ -657,6 +676,7 @@
 				B10000000000000000000004 /* SectionAnalyzerTests.swift in Sources */,
 				B10000000000000000000005 /* SyllableCounterTests.swift in Sources */,
 				B10000000000000000000006 /* LyricEditorViewportPolicyTests.swift in Sources */,
+				C10000000000000000000005 /* RecordingLyricLinkTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

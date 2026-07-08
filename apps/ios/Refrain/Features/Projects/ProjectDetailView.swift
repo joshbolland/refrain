@@ -366,6 +366,7 @@ private struct ProjectItemSelectionSheet: View {
     @State private var selectedItemIds: Set<String>
     @State private var isSaving = false
     @State private var saveErrorMessage: String?
+    @State private var includeLinkedItemsWhenAdding = true
 
     init(project: Project) {
         self.project = project
@@ -387,6 +388,19 @@ private struct ProjectItemSelectionSheet: View {
     private var selectedCountLabel: String {
         let count = selectedItemIds.count
         return "\(count) \(count == 1 ? "item selected" : "items selected")"
+    }
+
+    private var selectedItemsToAdd: [LibraryItem] {
+        let itemsById = Dictionary(uniqueKeysWithValues: libraryItems.map { ($0.id, $0) })
+        return selectedItemIds
+            .subtracting(currentMembership)
+            .compactMap { itemsById[$0] }
+    }
+
+    private var linkedItemsAvailableForSelectedAdds: Int {
+        selectedItemsToAdd.reduce(0) { total, item in
+            total + appState.linkedItemsNotInProject(for: item, project: currentProject).count
+        }
     }
 
     var body: some View {
@@ -454,6 +468,22 @@ private struct ProjectItemSelectionSheet: View {
                     }
                 }
 
+                if linkedItemsAvailableForSelectedAdds > 0 {
+                    Toggle(isOn: $includeLinkedItemsWhenAdding) {
+                        Label(
+                            linkedItemsAvailableForSelectedAdds == 1 ? "Also add linked file" : "Also add linked files",
+                            systemImage: "link"
+                        )
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.ink)
+                    }
+                    .tint(Theme.accentPressed)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Theme.accentSoft)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadiusSmall, style: .continuous))
+                }
+
                 Button {
                     Task {
                         await saveChanges()
@@ -507,14 +537,16 @@ private struct ProjectItemSelectionSheet: View {
         let currentIds = currentMembership
         let itemsById = Dictionary(uniqueKeysWithValues: libraryItems.map { ($0.id, $0) })
 
-        let itemsToAdd = selectedItemIds
-            .subtracting(currentIds)
-            .compactMap { itemsById[$0] }
+        let itemsToAdd = selectedItemsToAdd
         let itemsToRemove = currentIds
             .subtracting(selectedItemIds)
             .compactMap { itemsById[$0] }
 
-        let addSucceeded = await appState.addItems(itemsToAdd, to: currentProject)
+        let addSucceeded = await appState.addItems(
+            itemsToAdd,
+            to: currentProject,
+            includeLinkedItems: includeLinkedItemsWhenAdding
+        )
         let removeSucceeded = await appState.removeItems(itemsToRemove, from: currentProject)
 
         if addSucceeded && removeSucceeded {

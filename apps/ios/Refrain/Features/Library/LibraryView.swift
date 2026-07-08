@@ -11,6 +11,7 @@ struct LibraryView: View {
     @State private var showLyricScanner = false
     @State private var selectedItem: LibraryItem?
     @State private var projectSheetItem: LibraryItem?
+    @State private var linkSheetItem: LibraryItem?
     @State private var showManageItemsSheet = false
     @State private var renamingItem: LibraryItem?
     @State private var renameDraft = ""
@@ -159,6 +160,9 @@ struct LibraryView: View {
             }
             .sheet(item: $projectSheetItem) { item in
                 ProjectsSheet(item: item)
+            }
+            .sheet(item: $linkSheetItem) { item in
+                LinkItemSheet(sourceItem: item)
             }
             .sheet(item: $scanDraft) { draft in
                 LyricScanReviewSheet(draft: draft) { file in
@@ -548,6 +552,12 @@ struct LibraryView: View {
             projectSheetItem = item
         } label: {
             Label("Add to Project", systemImage: "folder.badge.plus")
+        }
+
+        Button {
+            linkSheetItem = item
+        } label: {
+            Label(item.isRecording ? "Link Lyric" : "Link Recording", systemImage: "link.badge.plus")
         }
 
         Divider()

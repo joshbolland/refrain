@@ -17,6 +17,8 @@ struct LyricEditorView: View {
     @State private var viewModel: EditorViewModel
     @State private var showRhymeSuggestions = false
     @State private var collectionSheetItem: LibraryItem?
+    @State private var linkSheetItem: LibraryItem?
+    @State private var linkedSelection: LibraryItem?
     @State private var shareSheetURL: URL?
     @State private var shareErrorMessage: String?
     @FocusState private var isTitleFocused: Bool
@@ -78,6 +80,9 @@ struct LyricEditorView: View {
         .sheet(item: $collectionSheetItem) { item in
             ProjectsSheet(item: item)
         }
+        .sheet(item: $linkSheetItem) { item in
+            LinkItemSheet(sourceItem: item)
+        }
         .sheet(isPresented: shareSheetIsPresented, onDismiss: {
             shareSheetURL = nil
         }) {
@@ -89,6 +94,14 @@ struct LyricEditorView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(shareErrorMessage ?? "Please try again.")
+        }
+        .navigationDestination(item: $linkedSelection) { item in
+            switch item {
+            case .lyric(let file):
+                LyricEditorView(file: file)
+            case .recording(let recording):
+                PlaybackView(recording: recording)
+            }
         }
         .task {
             viewModel.appState = appState
@@ -120,6 +133,12 @@ struct LyricEditorView: View {
                         collectionSheetItem = .lyric(file)
                     } label: {
                         Label("Add to Project", systemImage: "folder.badge.plus")
+                    }
+
+                    Button {
+                        linkSheetItem = .lyric(file)
+                    } label: {
+                        Label("Link Recording", systemImage: "link.badge.plus")
                     }
 
                     Button {
@@ -160,6 +179,11 @@ struct LyricEditorView: View {
                 .focused($isTitleFocused)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 10)
+
+            LinkedCounterpartStrip(items: appState.linkedItems(for: .lyric(file))) { item in
+                linkedSelection = item
+            }
+            .padding(.bottom, appState.linkedItems(for: .lyric(file)).isEmpty ? 0 : 10)
 
             headerRule
         }

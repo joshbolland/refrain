@@ -12,6 +12,8 @@ struct PlaybackView: View {
     @State private var isEditing = false
     @State private var editedTitle: String
     @State private var collectionSheetItem: LibraryItem?
+    @State private var linkSheetItem: LibraryItem?
+    @State private var linkedSelection: LibraryItem?
     @FocusState private var isTitleFieldFocused: Bool
 
     init(recording: Recording) {
@@ -44,6 +46,11 @@ struct PlaybackView: View {
                 Text(recording.formattedDuration)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+
+                LinkedCounterpartStrip(items: appState.linkedItems(for: .recording(recording))) { item in
+                    linkedSelection = item
+                }
+                .padding(.top, 4)
             }
             .contentShape(Rectangle())
             .onTapGesture {
@@ -139,6 +146,17 @@ struct PlaybackView: View {
         .sheet(item: $collectionSheetItem) { item in
             ProjectsSheet(item: item)
         }
+        .sheet(item: $linkSheetItem) { item in
+            LinkItemSheet(sourceItem: item)
+        }
+        .navigationDestination(item: $linkedSelection) { item in
+            switch item {
+            case .lyric(let file):
+                LyricEditorView(file: file)
+            case .recording(let recording):
+                PlaybackView(recording: recording)
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
@@ -146,6 +164,12 @@ struct PlaybackView: View {
                         collectionSheetItem = .recording(recording)
                     } label: {
                         Label("Add to Project", systemImage: "folder.badge.plus")
+                    }
+
+                    Button {
+                        linkSheetItem = .recording(recording)
+                    } label: {
+                        Label("Link Lyric", systemImage: "link.badge.plus")
                     }
 
                     Button {

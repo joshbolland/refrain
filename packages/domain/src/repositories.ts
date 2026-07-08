@@ -14,6 +14,7 @@ import type {
   ProjectWithCount,
 } from './project';
 import type { RecordingId, RecordingItem } from './recording';
+import type { RecordingLyricLink } from './recordingLyricLink';
 
 export interface LyricRepository {
   init(): Promise<void>;
@@ -89,4 +90,13 @@ export interface RecordingRepository {
   repairRecording(recording: RecordingItem, payload: RecordingUploadPayload): Promise<RecordingItem>;
   deleteRecording(recording: Pick<RecordingItem, 'id' | 'storageBucket' | 'storagePath'>): Promise<void>;
   clearAll(): Promise<void>;
+}
+
+export interface RecordingLyricLinkRepository {
+  init(): Promise<void>;
+  listLinks(): Promise<RecordingLyricLink[]>;
+  createLink(payload: { recordingId: RecordingId; lyricFileId: LyricFileId }): Promise<RecordingLyricLink>;
+  deleteLink(id: string): Promise<void>;
+  deleteLinksForRecording(recordingId: RecordingId): Promise<void>;
+  deleteLinksForLyric(lyricFileId: LyricFileId): Promise<void>;
 }
