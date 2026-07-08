@@ -92,6 +92,7 @@ final class AppState {
     var recordings: [Recording] = []
     var projects: [Project] = []
     var projectAssignments: [ProjectAssignment] = []
+    var recordingLyricLinks: [RecordingLyricLink] = []
 
     // MARK: - Filter State
     var searchQuery = ""
@@ -113,6 +114,7 @@ final class AppState {
     private let lyricRepository = LyricRepository()
     private let recordingRepository = RecordingRepository()
     private let projectRepository = ProjectRepository()
+    private let recordingLyricLinkRepository = RecordingLyricLinkRepository()
     private let recordingStorageService = RecordingStorageService.shared
 
     // MARK: - Initialization
@@ -182,6 +184,7 @@ final class AppState {
             group.addTask { await self.loadRecordings() }
             group.addTask { await self.loadProjects() }
             group.addTask { await self.loadProjectAssignments() }
+            group.addTask { await self.loadRecordingLyricLinks() }
         }
     }
 
@@ -191,6 +194,7 @@ final class AppState {
         recordings = []
         projects = []
         projectAssignments = []
+        recordingLyricLinks = []
     }
 
     func loadLyricFiles() async {
@@ -234,6 +238,17 @@ final class AppState {
             }
         } catch {
             print("Error loading project assignments: \(error)")
+        }
+    }
+
+    func loadRecordingLyricLinks() async {
+        do {
+            let items = try await recordingLyricLinkRepository.fetchAll()
+            await MainActor.run {
+                self.recordingLyricLinks = items
+            }
+        } catch {
+            print("Error loading recording lyric links: \(error)")
         }
     }
 
@@ -357,6 +372,147 @@ final class AppState {
         metadata(for: item).isArchived
     }
 
+    // MARK: - Recording/Lyric Link Operations
+
+    func linkedItems(for item: LibraryItem) -> [LibraryItem] {
+        switch item {
+        case .lyric(let file):
+            return linkedRecordings(for: file).map { .recording($0) }
+        case .recording(let recording):
+            return linkedLyrics(for: recording).map { .lyric($0) }
+        }
+    }
+
+    func linkedLyrics(for recording: Recording) -> [LyricFile] {
+        let lyricById = Dictionary(uniqueKeysWithValues: lyricFiles.map { ($0.id, $0) })
+        return recordingLyricLinks
+            .filter { $0.recordingId == recording.id }
+            .sorted { $0.createdAt < $1.createdAt }
+            .compactMap { lyricById[$0.lyricFileId] }
+    }
+
+    func linkedRecordings(for file: LyricFile) -> [Recording] {
+        let recordingById = Dictionary(uniqueKeysWithValues: recordings.map { ($0.id, $0) })
+        return recordingLyricLinks
+            .filter { $0.lyricFileId == file.id }
+            .sorted { $0.createdAt < $1.createdAt }
+            .compactMap { recordingById[$0.recordingId] }
+    }
+
+    func linkCandidates(for item: LibraryItem) -> [LibraryItem] {
+        let linkedIds = Set(linkedItems(for: item).map(\.id))
+
+        switch item {
+        case .lyric:
+            return sortLibraryItems(
+                recordings
+                    .filter { !linkedIds.contains($0.id) }
+                    .map { .recording($0) }
+            )
+        case .recording:
+            return sortLibraryItems(
+                lyricFiles
+                    .filter { !linkedIds.contains($0.id) }
+                    .map { .lyric($0) }
+            )
+        }
+    }
+
+    func linkedItemsNotInProject(for item: LibraryItem, project: Project) -> [LibraryItem] {
+        let existingItemIds = Set(itemsInProject(project).map(\.id))
+        return linkedItems(for: item).filter { !existingItemIds.contains($0.id) }
+    }
+
+    func itemsToAddToProject(
+        _ items: [LibraryItem],
+        project: Project,
+        includeLinkedItems: Bool
+    ) -> [LibraryItem] {
+        guard includeLinkedItems else {
+            return uniqueLibraryItems(items)
+        }
+
+        let existingItemIds = Set(itemsInProject(project).map(\.id))
+        var expandedItems = items
+
+        for item in items {
+            expandedItems.append(contentsOf: linkedItems(for: item).filter { linkedItem in
+                !existingItemIds.contains(linkedItem.id)
+            })
+        }
+
+        return uniqueLibraryItems(expandedItems)
+    }
+
+    @discardableResult
+    func linkRecording(_ recording: Recording, to lyricFile: LyricFile) async -> RecordingLyricLink? {
+        if let existingLink = recordingLyricLinks.first(where: {
+            $0.recordingId == recording.id && $0.lyricFileId == lyricFile.id
+        }) {
+            return existingLink
+        }
+
+        let link = RecordingLyricLink(
+            id: UUID().uuidString,
+            recordingId: recording.id,
+            lyricFileId: lyricFile.id,
+            createdAt: Date()
+        )
+
+        do {
+            try await recordingLyricLinkRepository.create(link)
+            await MainActor.run {
+                self.recordingLyricLinks.insert(link, at: 0)
+            }
+            return link
+        } catch {
+            print("Error linking recording and lyric: \(error)")
+            return nil
+        }
+    }
+
+    @discardableResult
+    func link(_ sourceItem: LibraryItem, to targetItem: LibraryItem) async -> RecordingLyricLink? {
+        switch (sourceItem, targetItem) {
+        case (.recording(let recording), .lyric(let file)):
+            return await linkRecording(recording, to: file)
+        case (.lyric(let file), .recording(let recording)):
+            return await linkRecording(recording, to: file)
+        default:
+            return nil
+        }
+    }
+
+    func deleteRecordingLyricLink(_ link: RecordingLyricLink) async {
+        do {
+            try await recordingLyricLinkRepository.delete(link)
+            await MainActor.run {
+                self.recordingLyricLinks.removeAll { $0.id == link.id }
+            }
+        } catch {
+            print("Error deleting recording lyric link: \(error)")
+        }
+    }
+
+    // MARK: - Direct File Import Operations
+
+    func importLyricFile(from fileURL: URL) async throws -> LyricFile {
+        try await importLyricFile(
+            from: fileURL,
+            preferredTitle: nil,
+            fallbackTitle: "Imported Lyrics"
+        )
+    }
+
+    func importRecordingFile(from fileURL: URL) async throws -> Recording {
+        try await importRecordingFile(
+            from: fileURL,
+            preferredTitle: nil,
+            preferredContentType: contentType(for: fileURL),
+            fallbackTitle: "Imported Recording"
+        )
+    }
+
     // MARK: - Lyric File Operations
 
     func createLyricFile(
@@ -426,11 +582,15 @@ final class AppState {
 
     func deleteLyricFile(_ file: LyricFile) async {
         do {
+            try await recordingLyricLinkRepository.deleteAll(forLyricFileId: file.id)
+        } catch {
+            print("Error deleting lyric links: \(error)")
+        }
+
+        do {
             try await lyricRepository.delete(file.id)
             await MainActor.run {
-                self.lyricFiles.removeAll { $0.id == file.id }
-                self.projectAssignments.removeAll { $0.itemId == file.id }
-                self.removeMetadata(forItemId: file.id)
+                self.removeLocalStateForDeletedLyricFile(id: file.id)
             }
         } catch {
             print("Error deleting lyric file: \(error)")
@@ -506,6 +666,12 @@ final class AppState {
     }
 
     func deleteRecording(_ recording: Recording) async {
+        do {
+            try await recordingLyricLinkRepository.deleteAll(forRecordingId: recording.id)
+        } catch {
+            print("Error deleting recording links: \(error)")
+        }
+
         if recordingStorageService.isRemoteStoragePath(recording.uri) {
             do {
                 try await recordingStorageService.deleteRecording(at: recording.uri)
@@ -517,9 +683,7 @@ final class AppState {
         do {
             try await recordingRepository.delete(recording.id)
             await MainActor.run {
-                self.recordings.removeAll { $0.id == recording.id }
-                self.projectAssignments.removeAll { $0.itemId == recording.id }
-                self.removeMetadata(forItemId: recording.id)
+                self.removeLocalStateForDeletedRecording(id: recording.id)
             }
         } catch {
             print("Error deleting recording: \(error)")
@@ -560,6 +724,20 @@ final class AppState {
                 await deleteRecording(recording)
             }
         }
+    }
+
+    func removeLocalStateForDeletedLyricFile(id: String) {
+        lyricFiles.removeAll { $0.id == id }
+        projectAssignments.removeAll { $0.itemType == .lyric && $0.itemId == id }
+        recordingLyricLinks.removeAll { $0.lyricFileId == id }
+        removeMetadata(forItemId: id)
+    }
+
+    func removeLocalStateForDeletedRecording(id: String) {
+        recordings.removeAll { $0.id == id }
+        projectAssignments.removeAll { $0.itemType == .recording && $0.itemId == id }
+        recordingLyricLinks.removeAll { $0.recordingId == id }
+        removeMetadata(forItemId: id)
     }
 
     func deleteCurrentAccountData() async {
@@ -655,7 +833,21 @@ final class AppState {
     // MARK: - Project Assignment Operations
 
     @discardableResult
-    func addToProject(_ item: LibraryItem, project: Project) async -> Bool {
+    func addToProject(_ item: LibraryItem, project: Project, includeLinkedItems: Bool = false) async -> Bool {
+        var didSucceed = await addSingleItemToProject(item, project: project)
+
+        if includeLinkedItems {
+            let linkedItems = linkedItemsNotInProject(for: item, project: project)
+            for linkedItem in linkedItems {
+                didSucceed = await addSingleItemToProject(linkedItem, project: project) && didSucceed
+            }
+        }
+
+        return didSucceed
+    }
+
+    @discardableResult
+    private func addSingleItemToProject(_ item: LibraryItem, project: Project) async -> Bool {
         guard !projectAssignments.contains(where: {
             $0.projectId == project.id && $0.itemId == item.id
         }) else {
@@ -682,10 +874,12 @@ final class AppState {
     }
 
     @discardableResult
-    func addItems(_ items: [LibraryItem], to project: Project) async -> Bool {
+    func addItems(_ items: [LibraryItem], to project: Project, includeLinkedItems: Bool = false) async -> Bool {
         var didSucceed = true
-        for item in items {
-            didSucceed = await addToProject(item, project: project) && didSucceed
+        let expandedItems = itemsToAddToProject(items, project: project, includeLinkedItems: includeLinkedItems)
+
+        for item in expandedItems {
+            didSucceed = await addSingleItemToProject(item, project: project) && didSucceed
         }
         return didSucceed
     }
@@ -832,13 +1026,55 @@ final class AppState {
         return "\(baseTitle) Copy \(copyNumber)"
     }
 
-    private func importSharedLyric(_ item: PendingSharedImport) async throws -> LibraryItem {
-        let body = try String(contentsOf: item.fileURL, encoding: .utf8)
-        let title = importedTitle(for: item, fallback: "Imported Note")
+    private func uniqueLibraryItems(_ items: [LibraryItem]) -> [LibraryItem] {
+        var seenKeys: Set<String> = []
+        var uniqueItems: [LibraryItem] = []
 
+        for item in items {
+            let key = "\(item.itemType.rawValue):\(item.id)"
+            guard !seenKeys.contains(key) else { continue }
+            seenKeys.insert(key)
+            uniqueItems.append(item)
+        }
+
+        return uniqueItems
+    }
+
+    private func importSharedLyric(_ item: PendingSharedImport) async throws -> LibraryItem {
+        let file = try await importLyricFile(
+            from: item.fileURL,
+            preferredTitle: importedTitle(for: item, fallback: "Imported Note"),
+            fallbackTitle: "Imported Note"
+        )
+        return .lyric(file)
+    }
+
+    private func importSharedRecording(_ item: PendingSharedImport) async throws -> LibraryItem {
+        let recording = try await importRecordingFile(
+            from: item.fileURL,
+            preferredTitle: importedTitle(for: item, fallback: "Imported Recording"),
+            preferredContentType: itemContentType(for: item),
+            fallbackTitle: "Imported Recording"
+        )
+        return .recording(recording)
+    }
+
+    private func importLyricFile(
+        from fileURL: URL,
+        preferredTitle: String?,
+        fallbackTitle: String
+    ) async throws -> LyricFile {
+        let didAccessSecurityScopedResource = fileURL.startAccessingSecurityScopedResource()
+        defer {
+            if didAccessSecurityScopedResource {
+                fileURL.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        let body = try String(contentsOf: fileURL, encoding: .utf8)
         let file = LyricFile(
             id: UUID().uuidString,
-            title: title,
+            title: importedTitle(forFileURL: fileURL, preferredTitle: preferredTitle, fallback: fallbackTitle),
             body: body,
             createdAt: Date(),
             updatedAt: Date(),
@@ -849,29 +1085,41 @@ final class AppState {
         await MainActor.run {
             lyricFiles.insert(file, at: 0)
         }
-        return .lyric(file)
+        return file
     }
 
-    private func importSharedRecording(_ item: PendingSharedImport) async throws -> LibraryItem {
+    private func importRecordingFile(
+        from fileURL: URL,
+        preferredTitle: String?,
+        preferredContentType: String?,
+        fallbackTitle: String
+    ) async throws -> Recording {
+        let didAccessSecurityScopedResource = fileURL.startAccessingSecurityScopedResource()
+        defer {
+            if didAccessSecurityScopedResource {
+                fileURL.stopAccessingSecurityScopedResource()
+            }
+        }
+
         guard let userId = await authService.getCurrentUserId() else {
             throw RepositoryError.notAuthenticated
         }
 
         let recordingId = UUID().uuidString
         let storagePath = try await recordingStorageService.uploadRecording(
-            from: item.fileURL,
+            from: fileURL,
             recordingId: recordingId,
             userId: userId,
-            preferredFileExtension: item.fileURL.pathExtension,
-            contentType: itemContentType(for: item)
+            preferredFileExtension: fileURL.pathExtension,
+            contentType: preferredContentType
         )
 
         let recording = Recording(
             id: recordingId,
-            title: importedTitle(for: item, fallback: "Imported Recording"),
+            title: importedTitle(forFileURL: fileURL, preferredTitle: preferredTitle, fallback: fallbackTitle),
             createdAt: Date(),
             updatedAt: Date(),
-            durationMs: await durationMilliseconds(for: item.fileURL),
+            durationMs: await durationMilliseconds(for: fileURL),
             uri: storagePath
         )
 
@@ -879,7 +1127,7 @@ final class AppState {
         await MainActor.run {
             recordings.insert(recording, at: 0)
         }
-        return .recording(recording)
+        return recording
     }
 
     private func importedTitle(for item: PendingSharedImport, fallback: String) -> String {
@@ -909,6 +1157,28 @@ final class AppState {
         guard
             !item.fileURL.pathExtension.isEmpty,
             let type = UTType(filenameExtension: item.fileURL.pathExtension)
+        else {
+            return nil
+        }
+
+        return type.preferredMIMEType
+    }
+
+    private func importedTitle(forFileURL fileURL: URL, preferredTitle: String?, fallback: String) -> String {
+        let title = preferredTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let title, !title.isEmpty {
+            return title
+        }
+
+        let filename = fileURL.deletingPathExtension().lastPathComponent
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return filename.isEmpty ? fallback : filename
+    }
+
+    private func contentType(for fileURL: URL) -> String? {
+        guard
+            !fileURL.pathExtension.isEmpty,
+            let type = UTType(filenameExtension: fileURL.pathExtension)
         else {
             return nil
         }

@@ -38,6 +38,8 @@ struct ProjectsSheet: View {
 
     @State private var showNewProjectSheet = false
     @State private var sortOption: ProjectSortOption = .recentlyUpdated
+    @State private var projectsExcludingLinkedItems: Set<Project.ID> = []
+    @State private var includeLinkedItemsInNewProject = true
 
     private var assignedProjectIds: Set<String> {
         Set(appState.projectsContaining(item).map { $0.id })
@@ -61,6 +63,10 @@ struct ProjectsSheet: View {
                 return lhs > rhs
             }
         }
+    }
+
+    private var linkedItemsForNewProject: [LibraryItem] {
+        appState.linkedItems(for: item)
     }
 
     var body: some View {
@@ -130,14 +136,21 @@ struct ProjectsSheet: View {
                 ScrollView {
                     VStack(spacing: 10) {
                         ForEach(sortedProjects) { project in
+                            let linkedItems = appState.linkedItemsNotInProject(for: item, project: project)
                             ProjectToggleRow(
                                 project: project,
                                 counts: appState.itemCount(for: project),
                                 isSelected: assignedProjectIds.contains(project.id),
-                                onToggle: { isSelected in
+                                linkedItemCount: linkedItems.count,
+                                includeLinkedItems: includeLinkedItemsBinding(for: project),
+                                onToggle: { isSelected, includeLinkedItems in
                                     Task {
                                         if isSelected {
-                                            await appState.addToProject(item, project: project)
+                                            await appState.addToProject(
+                                                item,
+                                                project: project,
+                                                includeLinkedItems: includeLinkedItems
+                                            )
                                         } else {
                                             await appState.removeFromProject(item, project: project)
                                         }
@@ -147,6 +160,22 @@ struct ProjectsSheet: View {
                         }
                     }
                 }
+            }
+
+            if !linkedItemsForNewProject.isEmpty {
+                Toggle(isOn: $includeLinkedItemsInNewProject) {
+                    Label(
+                        linkedItemsForNewProject.count == 1 ? "Add linked file too" : "Add linked files too",
+                        systemImage: "link"
+                    )
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.ink)
+                }
+                .tint(Theme.accentPressed)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(Theme.accentSoft)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadiusSmall, style: .continuous))
             }
 
             Button {
@@ -165,7 +194,11 @@ struct ProjectsSheet: View {
         .sheet(isPresented: $showNewProjectSheet) {
             NewProjectSheet { project in
                 Task {
-                    await appState.addToProject(item, project: project)
+                    await appState.addToProject(
+                        item,
+                        project: project,
+                        includeLinkedItems: includeLinkedItemsInNewProject && !linkedItemsForNewProject.isEmpty
+                    )
                     await MainActor.run {
                         dismiss()
                     }
@@ -173,56 +206,90 @@ struct ProjectsSheet: View {
             }
         }
     }
+
+    private func includeLinkedItemsBinding(for project: Project) -> Binding<Bool> {
+        Binding(
+            get: { !projectsExcludingLinkedItems.contains(project.id) },
+            set: { includeLinkedItems in
+                if includeLinkedItems {
+                    projectsExcludingLinkedItems.remove(project.id)
+                } else {
+                    projectsExcludingLinkedItems.insert(project.id)
+                }
+            }
+        )
+    }
 }
 
 struct ProjectToggleRow: View {
     let project: Project
     let counts: (total: Int, lyrics: Int, recordings: Int)
     let isSelected: Bool
-    let onToggle: (Bool) -> Void
+    let linkedItemCount: Int
+    @Binding var includeLinkedItems: Bool
+    let onToggle: (Bool, Bool) -> Void
 
     var body: some View {
-        Button {
-            onToggle(!isSelected)
-        } label: {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(project.title)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Theme.ink)
+        VStack(spacing: 0) {
+            Button {
+                onToggle(!isSelected, includeLinkedItems)
+            } label: {
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(project.title)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Theme.ink)
 
-                    if let description = project.description?.trimmingCharacters(in: .whitespacesAndNewlines),
-                       !description.isEmpty {
-                        Text(description)
-                            .font(.system(size: 13))
-                            .foregroundStyle(Theme.muted.opacity(0.82))
-                            .lineLimit(2)
+                        if let description = project.description?.trimmingCharacters(in: .whitespacesAndNewlines),
+                           !description.isEmpty {
+                            Text(description)
+                                .font(.system(size: 13))
+                                .foregroundStyle(Theme.muted.opacity(0.82))
+                                .lineLimit(2)
+                        }
+
+                        Text(countLabel)
+                            .font(.system(size: 11, weight: .semibold))
+                            .textCase(.uppercase)
+                            .tracking(1)
+                            .foregroundStyle(Theme.muted.opacity(0.72))
                     }
 
-                    Text(countLabel)
-                        .font(.system(size: 11, weight: .semibold))
-                        .textCase(.uppercase)
-                        .tracking(1)
-                        .foregroundStyle(Theme.muted.opacity(0.72))
+                    Spacer(minLength: 12)
+
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(isSelected ? Theme.accent : Theme.muted.opacity(0.6))
+                        .padding(.top, 2)
                 }
-
-                Spacer(minLength: 12)
-
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(isSelected ? Theme.accent : Theme.muted.opacity(0.6))
-                    .padding(.top, 2)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.paper)
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.cornerRadiusSmall, style: .continuous)
-                    .stroke(Theme.divider, lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadiusSmall, style: .continuous))
+            .buttonStyle(PressableScaleStyle())
+
+            if !isSelected && linkedItemCount > 0 {
+                Divider()
+                    .background(Theme.divider)
+
+                Toggle(isOn: $includeLinkedItems) {
+                    Label(
+                        linkedItemCount == 1 ? "Also add linked file" : "Also add \(linkedItemCount) linked files",
+                        systemImage: "link"
+                    )
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.ink)
+                }
+                .tint(Theme.accentPressed)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+            }
         }
-        .buttonStyle(PressableScaleStyle())
+        .background(Theme.paper)
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.cornerRadiusSmall, style: .continuous)
+                .stroke(Theme.divider, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadiusSmall, style: .continuous))
     }
 
     private var countLabel: String {

@@ -99,6 +99,14 @@ extension AppState {
                     )
                 ]
 
+                state.recordingLyricLinks = [
+                    RecordingLyricLink(
+                        id: "link-rec-1-lyric-1",
+                        recordingId: chorusIdea.id,
+                        lyricFileId: firstSong.id
+                    )
+                ]
+
                 state.itemMetadataById = [
                     firstSong.id: LibraryItemMetadata(isFavorite: true, isArchived: false),
                     chorusIdea.id: LibraryItemMetadata(isFavorite: true, isArchived: false),

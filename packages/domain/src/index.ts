@@ -4,5 +4,6 @@ export * from './library';
 export * from './lyricFile';
 export * from './project';
 export * from './recording';
+export * from './recordingLyricLink';
 export * from './repositories';
 export * from './supabase';

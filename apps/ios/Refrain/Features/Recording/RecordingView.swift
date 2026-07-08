@@ -5,8 +5,14 @@ struct RecordingView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
 
+    let onSave: ((Recording) -> Void)?
+
     @State private var viewModel = RecordingViewModel()
     @State private var isShowingSaveSheet = false
+
+    init(onSave: ((Recording) -> Void)? = nil) {
+        self.onSave = onSave
+    }
 
     var body: some View {
         NavigationStack {
@@ -154,7 +160,8 @@ struct RecordingView: View {
                         },
                         onSave: {
                             Task {
-                                if await viewModel.save(appState: appState, title: viewModel.draftTitle) != nil {
+                                if let recording = await viewModel.save(appState: appState, title: viewModel.draftTitle) {
+                                    onSave?(recording)
                                     isShowingSaveSheet = false
                                     dismiss()
                                 }

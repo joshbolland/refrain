@@ -96,6 +96,30 @@ export interface Database {
         };
         Relationships: [];
       };
+      recording_lyric_links: {
+        Row: {
+          id: string;
+          user_id: string;
+          recording_id: string;
+          lyric_file_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string;
+          recording_id: string;
+          lyric_file_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          recording_id?: string;
+          lyric_file_id?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       recordings: {
         Row: {
           id: string;
