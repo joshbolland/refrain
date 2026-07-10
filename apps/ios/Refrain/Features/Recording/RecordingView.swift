@@ -169,7 +169,7 @@ struct RecordingView: View {
                         }
                     )
                 }
-                .presentationDetents([.height(320)])
+                .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
             }
         }
@@ -187,85 +187,190 @@ private struct RecordingSaveSheet: View {
     @FocusState private var isTitleFieldFocused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Name Recording")
-                    .font(.title3.weight(.semibold))
-
-//                Text("You can save this as is or give it a clearer label now.")
-//                    .font(.subheadline)
-//                    .foregroundStyle(.secondary)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                header
+                titleField
+                quickLabels
             }
-
-            TextField("Recording title", text: $title)
-                .textFieldStyle(.roundedBorder)
-                .submitLabel(.done)
-                .focused($isTitleFieldFocused)
-                .onSubmit {
-                    onSave()
-                }
-
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Quick labels")
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(.secondary)
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(quickTitleOptions, id: \.self) { option in
-                            Button {
-                                onQuickTitleSelected(option)
-                            } label: {
-                                Text(option)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.primary)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .background(Color(.secondarySystemBackground))
-                                    .clipShape(Capsule())
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-            }
-
-            Spacer()
-
-            HStack(spacing: 12) {
-                Button("Cancel", role: .cancel) {
-                    onCancel()
-                }
-                .buttonStyle(.bordered)
-
-                Button {
-                    onSave()
-                } label: {
-                    if isSaving {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                    } else {
-                        Text("Save Recording")
-                            .frame(maxWidth: .infinity)
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(isSaving)
-            }
+            .padding(.horizontal, 24)
+            .padding(.top, 28)
+            .padding(.bottom, 24)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .padding(20)
+        .background(Theme.canvas.ignoresSafeArea())
+        .safeAreaInset(edge: .bottom) {
+            actionBar
+        }
+        .scrollDismissesKeyboard(.interactively)
         .onAppear {
             isTitleFieldFocused = true
         }
     }
 
+    private var header: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Text("Name Recording")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(Theme.ink)
+
+            Spacer()
+
+            Label(durationText, systemImage: "waveform")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Theme.accentPressed)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(Theme.accentSoft)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadiusSmall, style: .continuous))
+        }
+    }
+
+    private var titleField: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            fieldLabel("Title")
+
+            HStack(spacing: 10) {
+                TextField("Recording title", text: $title)
+                    .textFieldStyle(.plain)
+                    .submitLabel(.done)
+                    .focused($isTitleFieldFocused)
+                    .tint(Theme.accentPressed)
+                    .foregroundStyle(Theme.ink)
+                    .disabled(isSaving)
+                    .onSubmit {
+                        onSave()
+                    }
+
+                if !title.isEmpty {
+                    Button {
+                        title = ""
+                        isTitleFieldFocused = true
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(Theme.muted.opacity(0.42))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isSaving)
+                    .accessibilityLabel("Clear title")
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(Theme.paper)
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.cornerRadiusSmall, style: .continuous)
+                    .stroke(
+                        isTitleFieldFocused ? Theme.accentPressed.opacity(0.55) : Theme.divider,
+                        lineWidth: isTitleFieldFocused ? 1.5 : 1
+                    )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadiusSmall, style: .continuous))
+        }
+    }
+
+    private var quickLabels: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            fieldLabel("Quick labels")
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(quickTitleOptions, id: \.self) { option in
+                        quickTitleChip(option)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+        }
+    }
+
+    private var actionBar: some View {
+        HStack(spacing: 12) {
+            Button(role: .cancel) {
+                onCancel()
+            } label: {
+                Text("Cancel")
+                    .frame(maxWidth: .infinity)
+            }
+            .secondaryButtonStyle()
+            .buttonStyle(PressableScaleStyle())
+            .disabled(isSaving)
+            .opacity(isSaving ? 0.55 : 1)
+
+            Button {
+                onSave()
+            } label: {
+                if isSaving {
+                    ProgressView()
+                        .tint(.white)
+                        .frame(maxWidth: .infinity)
+                } else {
+                    Text("Save Recording")
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .primaryButtonStyle()
+            .buttonStyle(PressableScaleStyle())
+            .disabled(isSaving)
+            .opacity(isSaving ? 0.7 : 1)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 12)
+        .padding(.bottom, 12)
+        .background(Theme.paper)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(Theme.divider)
+                .frame(height: 1)
+        }
+    }
+
+    private func fieldLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 11, weight: .semibold))
+            .textCase(.uppercase)
+            .tracking(1.2)
+            .foregroundStyle(Theme.muted.opacity(0.7))
+    }
+
+    private func quickTitleChip(_ option: String) -> some View {
+        let isSelected = option == title
+
+        return Button {
+            onQuickTitleSelected(option)
+            isTitleFieldFocused = true
+        } label: {
+            Text(option)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(isSelected ? Theme.accentPressed : Theme.ink)
+                .lineLimit(1)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(isSelected ? Theme.accentSoft : Theme.paper)
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.cornerRadiusSmall, style: .continuous)
+                        .stroke(isSelected ? Theme.accentPressed.opacity(0.45) : Theme.divider, lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadiusSmall, style: .continuous))
+        }
+        .buttonStyle(PressableScaleStyle())
+        .disabled(isSaving)
+    }
+
     private var quickTitleOptions: [String] {
-        [
+        let options = [
             suggestedTitle,
             "Quick idea - \(durationText)",
             "Voice memo - \(durationText)",
             "Take - \(durationText)"
         ]
+
+        return options.reduce(into: []) { result, option in
+            if !result.contains(option) {
+                result.append(option)
+            }
+        }
     }
 }
 
