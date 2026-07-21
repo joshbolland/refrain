@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 
-import type { LyricFile, ProjectAssignment, ProjectWithCount, RecordingItem } from '@refrain/domain';
+import type { LyricFile, ProjectAssignment, ProjectWithCount, RecordingItem, RecordingLyricLink } from '@refrain/domain';
 
 import { useWorkspaceStore } from '@/lib/workspace-store';
 
@@ -101,6 +101,13 @@ const previewAssignments: ProjectAssignment[] = [
   },
 ];
 
+const previewLinks: RecordingLyricLink[] = [{
+  id: 'preview-link-1',
+  recordingId: 'preview-bridge-idea',
+  lyricFileId: 'preview-paper-satellites',
+  createdAt: now - 1000 * 60 * 60 * 5,
+}];
+
 export function WorkspacePreview() {
   useEffect(() => {
     useWorkspaceStore.setState({
@@ -108,6 +115,7 @@ export function WorkspacePreview() {
       recordings: previewRecordings,
       projects: previewProjects,
       assignments: previewAssignments,
+      recordingLyricLinks: previewLinks,
       isInitialized: true,
       isLoading: false,
       activeUserId: 'preview-user',

@@ -28,6 +28,10 @@ struct LyricEditorView: View {
         self._viewModel = State(initialValue: EditorViewModel(file: file))
     }
 
+    private var linkedItemsForCurrentLyric: [LibraryItem] {
+        appState.linkedItems(for: .lyric(file))
+    }
+
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
@@ -128,6 +132,12 @@ struct LyricEditorView: View {
 
                 rhymeToggle
 
+                if !linkedItemsForCurrentLyric.isEmpty {
+                    LinkedCounterpartStrip(items: linkedItemsForCurrentLyric) { item in
+                        linkedSelection = item
+                    }
+                }
+
                 Menu {
                     Button {
                         collectionSheetItem = .lyric(file)
@@ -136,7 +146,7 @@ struct LyricEditorView: View {
                     }
 
                     Button {
-                        linkSheetItem = .lyric(file)
+                        linkSheetItem = .lyric(viewModel.currentDraftFile())
                     } label: {
                         Label("Link Recording", systemImage: "link.badge.plus")
                     }
@@ -179,11 +189,6 @@ struct LyricEditorView: View {
                 .focused($isTitleFocused)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 10)
-
-            LinkedCounterpartStrip(items: appState.linkedItems(for: .lyric(file))) { item in
-                linkedSelection = item
-            }
-            .padding(.bottom, appState.linkedItems(for: .lyric(file)).isEmpty ? 0 : 10)
 
             headerRule
         }

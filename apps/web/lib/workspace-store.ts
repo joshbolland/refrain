@@ -13,9 +13,10 @@ import type {
   ProjectWithCount,
   RecordingId,
   RecordingItem,
+  RecordingLyricLink,
 } from '@refrain/domain';
 
-import { lyricRepo, projectRepo, recordingRepo, supabase } from './supabase';
+import { lyricRepo, projectRepo, recordingLyricLinkRepo, recordingRepo, supabase } from './supabase';
 
 const sortFiles = (files: LyricFile[]) => [...files].sort((a, b) => b.updatedAt - a.updatedAt);
 const sortProjects = (projects: ProjectWithCount[]) => [...projects].sort((a, b) => b.updatedAt - a.updatedAt);
@@ -75,6 +76,7 @@ interface WorkspaceState {
   projects: ProjectWithCount[];
   assignments: ProjectAssignment[];
   recordings: RecordingItem[];
+  recordingLyricLinks: RecordingLyricLink[];
   init(): Promise<void>;
   refresh(): Promise<void>;
   createLyric(): Promise<LyricFile>;
@@ -91,6 +93,10 @@ interface WorkspaceState {
   deleteRecording(id: RecordingId): Promise<void>;
   replaceRecording(recording: RecordingItem): void;
   resolveRecordingUrl(recording: RecordingItem): Promise<string | null>;
+  linkRecordingToLyric(recordingId: RecordingId, lyricFileId: LyricFileId): Promise<void>;
+  unlinkRecordingFromLyric(recordingId: RecordingId, lyricFileId: LyricFileId): Promise<void>;
+  recordingsForLyric(lyricFileId: LyricFileId): RecordingItem[];
+  lyricsForRecording(recordingId: RecordingId): LyricFile[];
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
@@ -102,6 +108,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   projects: [],
   assignments: [],
   recordings: [],
+  recordingLyricLinks: [],
 
   async init() {
     set({ isLoading: true, error: null });
@@ -116,6 +123,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
           projects: [],
           assignments: [],
           recordings: [],
+          recordingLyricLinks: [],
           activeUserId: null,
           isInitialized: false,
         });
@@ -130,8 +138,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         projectRepo.listProjects(),
         projectRepo.listAssignments(),
         recordingRepo.listRecordings(),
+        recordingLyricLinkRepo.listLinks(),
       ]);
-      const [filesResult, projectsResult, assignmentsResult, recordingsResult] = results;
+      const [filesResult, projectsResult, assignmentsResult, recordingsResult, linksResult] = results;
       const errors = results
         .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
         .map((result) => (result.reason instanceof Error ? result.reason.message : 'Unknown workspace load error.'));
@@ -139,11 +148,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       const projects = projectsResult.status === 'fulfilled' ? projectsResult.value : [];
       const assignments = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
       const recordings = recordingsResult.status === 'fulfilled' ? recordingsResult.value : [];
+      const recordingLyricLinks = linksResult.status === 'fulfilled' ? linksResult.value : [];
       set({
         files: sortFiles(files),
         projects: applyCountsToProjects(projects, assignments),
         assignments,
         recordings: sortRecordings(recordings),
+        recordingLyricLinks,
         activeUserId: userId,
         isInitialized: true,
         error: errors.length ? `Some workspace data could not load: ${errors.join(' ')}` : null,
@@ -168,8 +179,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         projectRepo.listProjects(),
         projectRepo.listAssignments(),
         recordingRepo.listRecordings(),
+        recordingLyricLinkRepo.listLinks(),
       ]);
-      const [filesResult, projectsResult, assignmentsResult, recordingsResult] = results;
+      const [filesResult, projectsResult, assignmentsResult, recordingsResult, linksResult] = results;
       const errors = results
         .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
         .map((result) => (result.reason instanceof Error ? result.reason.message : 'Unknown workspace refresh error.'));
@@ -177,11 +189,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       const projects = projectsResult.status === 'fulfilled' ? projectsResult.value : [];
       const assignments = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
       const recordings = recordingsResult.status === 'fulfilled' ? recordingsResult.value : [];
+      const recordingLyricLinks = linksResult.status === 'fulfilled' ? linksResult.value : [];
       set({
         files: sortFiles(files),
         projects: applyCountsToProjects(projects, assignments),
         assignments,
         recordings: sortRecordings(recordings),
+        recordingLyricLinks,
         activeUserId: userId,
         isInitialized: true,
         error: errors.length ? `Some workspace data could not refresh: ${errors.join(' ')}` : null,
@@ -225,6 +239,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   },
 
   async deleteLyric(id) {
+    await recordingLyricLinkRepo.deleteLinksForLyric(id);
     await lyricRepo.deleteFile(id);
     set((state) => {
       const assignments = state.assignments.filter(
@@ -234,6 +249,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         files: state.files.filter((file) => file.id !== id),
         assignments,
         projects: applyCountsToProjects(state.projects, assignments),
+        recordingLyricLinks: state.recordingLyricLinks.filter((link) => link.lyricFileId !== id),
       };
     });
   },
@@ -375,6 +391,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     if (!current) {
       return;
     }
+    await recordingLyricLinkRepo.deleteLinksForRecording(id);
     await recordingRepo.deleteRecording(current);
     set((state) => {
       const assignments = state.assignments.filter(
@@ -384,6 +401,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         recordings: state.recordings.filter((recording) => recording.id !== id),
         assignments,
         projects: applyCountsToProjects(state.projects, assignments),
+        recordingLyricLinks: state.recordingLyricLinks.filter((link) => link.recordingId !== id),
       };
     });
   },
@@ -399,5 +417,57 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
   async resolveRecordingUrl(recording) {
     return recordingRepo.resolvePlaybackUrl(recording);
+  },
+
+  async linkRecordingToLyric(recordingId, lyricFileId) {
+    if (get().recordingLyricLinks.some((link) => link.recordingId === recordingId && link.lyricFileId === lyricFileId)) return;
+    const optimistic: RecordingLyricLink = {
+      id: `optimistic-${recordingId}-${lyricFileId}`,
+      recordingId,
+      lyricFileId,
+      createdAt: Date.now(),
+    };
+    set((state) => ({ recordingLyricLinks: [optimistic, ...state.recordingLyricLinks], error: null }));
+    try {
+      const saved = await recordingLyricLinkRepo.createLink({ recordingId, lyricFileId });
+      set((state) => ({
+        recordingLyricLinks: state.recordingLyricLinks.map((link) => (link.id === optimistic.id ? saved : link)),
+      }));
+    } catch (error) {
+      set((state) => ({
+        recordingLyricLinks: state.recordingLyricLinks.filter((link) => link.id !== optimistic.id),
+        error: error instanceof Error ? error.message : 'Could not link recording.',
+      }));
+      throw error;
+    }
+  },
+
+  async unlinkRecordingFromLyric(recordingId, lyricFileId) {
+    const existing = get().recordingLyricLinks.find(
+      (link) => link.recordingId === recordingId && link.lyricFileId === lyricFileId,
+    );
+    if (!existing) return;
+    set((state) => ({ recordingLyricLinks: state.recordingLyricLinks.filter((link) => link.id !== existing.id) }));
+    try {
+      await recordingLyricLinkRepo.deleteLink(existing.id);
+    } catch (error) {
+      set((state) => ({
+        recordingLyricLinks: [existing, ...state.recordingLyricLinks],
+        error: error instanceof Error ? error.message : 'Could not unlink recording.',
+      }));
+      throw error;
+    }
+  },
+
+  recordingsForLyric(lyricFileId) {
+    const state = get();
+    const ids = new Set(state.recordingLyricLinks.filter((link) => link.lyricFileId === lyricFileId).map((link) => link.recordingId));
+    return state.recordings.filter((recording) => ids.has(recording.id));
+  },
+
+  lyricsForRecording(recordingId) {
+    const state = get();
+    const ids = new Set(state.recordingLyricLinks.filter((link) => link.recordingId === recordingId).map((link) => link.lyricFileId));
+    return state.files.filter((file) => ids.has(file.id));
   },
 }));

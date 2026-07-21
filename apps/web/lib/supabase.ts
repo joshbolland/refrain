@@ -3,6 +3,7 @@ import {
   createRefrainSupabaseClient,
   createSupabaseLyricRepository,
   createSupabaseProjectRepository,
+  createSupabaseRecordingLyricLinkRepository,
   createSupabaseRecordingRepository,
 } from '@refrain/supabase-client';
 
@@ -39,3 +40,4 @@ export const supabase = createRefrainSupabaseClient({
 export const lyricRepo = createSupabaseLyricRepository(supabase);
 export const projectRepo = createSupabaseProjectRepository(supabase);
 export const recordingRepo = createSupabaseRecordingRepository(supabase);
+export const recordingLyricLinkRepo = createSupabaseRecordingLyricLinkRepository(supabase);

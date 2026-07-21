@@ -15,6 +15,8 @@ import type {
   ProjectRepository,
   ProjectWithCount,
   RecordingItem,
+  RecordingLyricLink,
+  RecordingLyricLinkRepository,
   RecordingRepository,
   RecordingUploadPayload,
   SectionType,
@@ -41,6 +43,7 @@ type RecordingRow = Pick<
   Database['public']['Tables']['recordings']['Row'],
   'id' | 'title' | 'duration_ms' | 'uri' | 'created_at' | 'updated_at'
 >;
+type RecordingLyricLinkRow = Database['public']['Tables']['recording_lyric_links']['Row'];
 
 const handleError = (error: PostgrestError | null) => {
   if (error) {
@@ -116,6 +119,80 @@ const mapRecordingRow = (row: RecordingRow): RecordingItem => ({
   mimeType: null,
   localUri: null,
   syncStatus: row.uri ? 'ready' : 'needs-reupload',
+});
+
+const mapRecordingLyricLinkRow = (row: RecordingLyricLinkRow): RecordingLyricLink => ({
+  id: row.id,
+  recordingId: row.recording_id,
+  lyricFileId: row.lyric_file_id,
+  createdAt: new Date(row.created_at).getTime(),
+});
+
+export const createSupabaseRecordingLyricLinkRepository = (
+  client: RefrainSupabaseClient,
+): RecordingLyricLinkRepository => ({
+  async init() {},
+
+  async listLinks() {
+    const userId = await getUserIdOrThrow(client, 'recording link');
+    const { data, error } = await client
+      .from('recording_lyric_links')
+      .select('id, user_id, recording_id, lyric_file_id, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    handleError(error);
+    return (data ?? []).map(mapRecordingLyricLinkRow);
+  },
+
+  async createLink({ recordingId, lyricFileId }) {
+    const userId = await getUserIdOrThrow(client, 'recording link');
+    const { data, error } = await client
+      .from('recording_lyric_links')
+      .upsert(
+        { user_id: userId, recording_id: recordingId, lyric_file_id: lyricFileId },
+        { onConflict: 'user_id,recording_id,lyric_file_id', ignoreDuplicates: true },
+      )
+      .select('id, user_id, recording_id, lyric_file_id, created_at')
+      .maybeSingle();
+    if (error && error.code !== '23505') handleError(error);
+    if (data) return mapRecordingLyricLinkRow(data);
+    const { data: existing, error: existingError } = await client
+      .from('recording_lyric_links')
+      .select('id, user_id, recording_id, lyric_file_id, created_at')
+      .eq('user_id', userId)
+      .eq('recording_id', recordingId)
+      .eq('lyric_file_id', lyricFileId)
+      .maybeSingle();
+    handleError(existingError);
+    if (!existing) throw new Error('Failed to link recording and lyric.');
+    return mapRecordingLyricLinkRow(existing);
+  },
+
+  async deleteLink(id) {
+    const userId = await getUserIdOrThrow(client, 'recording link');
+    const { error } = await client.from('recording_lyric_links').delete().eq('id', id).eq('user_id', userId);
+    handleError(error);
+  },
+
+  async deleteLinksForRecording(recordingId) {
+    const userId = await getUserIdOrThrow(client, 'recording link');
+    const { error } = await client
+      .from('recording_lyric_links')
+      .delete()
+      .eq('recording_id', recordingId)
+      .eq('user_id', userId);
+    handleError(error);
+  },
+
+  async deleteLinksForLyric(lyricFileId) {
+    const userId = await getUserIdOrThrow(client, 'recording link');
+    const { error } = await client
+      .from('recording_lyric_links')
+      .delete()
+      .eq('lyric_file_id', lyricFileId)
+      .eq('user_id', userId);
+    handleError(error);
+  },
 });
 
 export const createSupabaseLyricRepository = (client: RefrainSupabaseClient): LyricRepository => ({

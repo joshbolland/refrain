@@ -22,6 +22,10 @@ struct PlaybackView: View {
         self._editedTitle = State(initialValue: recording.title)
     }
 
+    private var linkedItemsForCurrentRecording: [LibraryItem] {
+        appState.linkedItems(for: .recording(recording))
+    }
+
     var body: some View {
         VStack(spacing: 32) {
             Spacer()
@@ -46,11 +50,6 @@ struct PlaybackView: View {
                 Text(recording.formattedDuration)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-
-                LinkedCounterpartStrip(items: appState.linkedItems(for: .recording(recording))) { item in
-                    linkedSelection = item
-                }
-                .padding(.top, 4)
             }
             .contentShape(Rectangle())
             .onTapGesture {
@@ -158,7 +157,13 @@ struct PlaybackView: View {
             }
         }
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                if !linkedItemsForCurrentRecording.isEmpty {
+                    LinkedCounterpartStrip(items: linkedItemsForCurrentRecording) { item in
+                        linkedSelection = item
+                    }
+                }
+
                 Menu {
                     Button {
                         collectionSheetItem = .recording(recording)
@@ -328,9 +333,11 @@ final class PlaybackViewModel: NSObject, AVAudioPlayerDelegate {
 
     private func startTimer() {
         stopTimer()
-        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
             self?.updateProgress()
         }
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
     }
 
     private func stopTimer() {
@@ -451,14 +458,25 @@ private struct PlaybackWaveformView: View {
             let totalSpacing = CGFloat(max(count - 1, 0)) * barSpacing
             let barWidth = max((geometry.size.width - totalSpacing) / CGFloat(count), 3)
 
-            HStack(alignment: .center, spacing: barSpacing) {
-                ForEach(Array(samples.enumerated()), id: \.offset) { index, sample in
-                    RoundedRectangle(cornerRadius: barWidth / 2)
-                        .fill(barColor(for: index))
-                        .frame(width: barWidth, height: barHeight(for: sample, in: geometry.size.height))
+            ZStack(alignment: .leading) {
+                waveformBars(
+                    color: Theme.primaryColor.opacity(0.22),
+                    barWidth: barWidth,
+                    availableHeight: geometry.size.height
+                )
+
+                waveformBars(
+                    color: Theme.primaryColor,
+                    barWidth: barWidth,
+                    availableHeight: geometry.size.height
+                )
+                .mask(alignment: .leading) {
+                    Rectangle()
+                        .frame(width: geometry.size.width * clampedProgress)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .animation(.linear(duration: 1.0 / 30.0), value: clampedProgress)
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
@@ -471,9 +489,22 @@ private struct PlaybackWaveformView: View {
         .frame(height: 96)
     }
 
-    private func barColor(for index: Int) -> Color {
-        let threshold = Int((Double(samples.count) * progress).rounded(.down))
-        return index < threshold ? Theme.primaryColor : Theme.primaryColor.opacity(0.22)
+    private var clampedProgress: CGFloat {
+        CGFloat(min(max(progress, 0), 1))
+    }
+
+    private func waveformBars(
+        color: Color,
+        barWidth: CGFloat,
+        availableHeight: CGFloat
+    ) -> some View {
+        HStack(alignment: .center, spacing: barSpacing) {
+            ForEach(Array(samples.enumerated()), id: \.offset) { _, sample in
+                RoundedRectangle(cornerRadius: barWidth / 2)
+                    .fill(color)
+                    .frame(width: barWidth, height: barHeight(for: sample, in: availableHeight))
+            }
+        }
     }
 
     private func barHeight(for sample: Float, in height: CGFloat) -> CGFloat {

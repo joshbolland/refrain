@@ -1,67 +1,29 @@
 'use client';
 
+import { ArrowLeft, Cloud, Database, LogOut, UserRound } from 'lucide-react';
+import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import { useWorkspaceStore } from '@/lib/workspace-store';
 
 export function SettingsWorkspace() {
-  const { user, signOut } = useAuthStore((state) => ({
-    user: state.user,
-    signOut: state.signOut,
-  }));
-  const { files, recordings, projects } = useWorkspaceStore((state) => ({
-    files: state.files,
-    recordings: state.recordings,
-    projects: state.projects,
-  }));
-  const providers =
-    user?.identities
-      ?.map((identity) => identity.provider)
-      .filter(Boolean)
-      .join(', ') || 'Unknown provider';
-
-  return (
-    <section className="grid h-full min-h-[78vh] gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-      <div className="rounded-[28px] border border-divider/70 bg-white/80 p-5 shadow-soft">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted/70">Settings</p>
-        <h2 className="mt-1 text-2xl font-semibold text-ink">Account and workspace</h2>
-        <div className="mt-5 grid gap-4 md:grid-cols-3">
-          {[
-            ['Lyrics', files.length.toString()],
-            ['Recordings', recordings.length.toString()],
-            ['Projects', projects.length.toString()],
-          ].map(([label, value]) => (
-            <div key={label} className="rounded-[24px] border border-divider bg-paper p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted/70">{label}</p>
-              <p className="mt-3 text-3xl font-semibold text-ink">{value}</p>
-            </div>
-          ))}
-        </div>
+  const { user, signOut } = useAuthStore((state) => ({ user: state.user, signOut: state.signOut }));
+  const { files, recordings, projects } = useWorkspaceStore((state) => ({ files: state.files, recordings: state.recordings, projects: state.projects }));
+  const providers = user?.identities?.map((identity) => identity.provider).filter(Boolean).join(', ') || 'Preview session';
+  return <section className="rf-scrollbar h-full overflow-y-auto bg-paper">
+    <header className="rf-glass sticky top-0 z-10 flex h-14 items-center border-b border-divider px-3"><Link href="/library" className="notes-icon-button md:hidden"><ArrowLeft size={18} /></Link><h1 className="ml-2 text-sm font-semibold">Settings</h1></header>
+    <div className="mx-auto max-w-2xl px-4 py-8 md:px-8 md:py-12">
+      <h2 className="text-[32px] font-bold tracking-[-0.04em]">Account & Workspace</h2><p className="mt-2 text-sm text-muted">Your Refrain identity, sync status, and library overview.</p>
+      <div className="mt-8 overflow-hidden rounded-2xl border border-divider">
+        <SettingRow icon={UserRound} label="Email" value={user?.email ?? 'Preview user'} />
+        <SettingRow icon={Cloud} label="Sign-in provider" value={providers} />
+        <SettingRow icon={Database} label="Library" value={`${files.length} lyrics · ${recordings.length} recordings · ${projects.length} projects`} last />
       </div>
+      <div className="mt-8 rounded-2xl border border-divider p-5"><h3 className="text-sm font-semibold">Sync</h3><p className="mt-2 text-sm leading-6 text-muted">Refrain keeps your lyrics, recordings, Projects, and links in your private Supabase workspace.</p><div className="mt-4 flex items-center gap-2 text-xs text-muted"><span className="size-2 rounded-full bg-green-500" />Connected</div></div>
+      <button type="button" onClick={() => void signOut()} className="mt-8 flex items-center gap-2 rounded-xl border border-divider px-4 py-2.5 text-sm font-medium text-danger hover:bg-red-50"><LogOut size={16} />Sign out</button>
+    </div>
+  </section>;
+}
 
-      <div className="rounded-[28px] border border-divider/70 bg-white/80 p-5 shadow-soft">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted/70">Profile</p>
-        <h2 className="mt-1 text-2xl font-semibold text-ink">{user?.email ?? 'Unknown user'}</h2>
-        <p className="mt-3 text-sm text-muted/80">
-          Email/password and Google sign-in are supported on web in this first desktop release.
-        </p>
-        <div className="mt-5 space-y-3 rounded-2xl border border-divider bg-paper p-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted/70">Provider</p>
-            <p className="mt-1 text-sm font-semibold text-ink">{providers}</p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted/70">User ID</p>
-            <p className="mt-1 break-all font-mono text-xs text-muted">{user?.id ?? 'Unknown'}</p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => void signOut()}
-          className="mt-5 rounded-full bg-accent px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-accentPressed"
-        >
-          Sign out
-        </button>
-      </div>
-    </section>
-  );
+function SettingRow({ icon: Icon, label, value, last = false }: { icon: typeof UserRound; label: string; value: string; last?: boolean }) {
+  return <div className={`flex items-center gap-3 bg-paper px-4 py-4 ${last ? '' : 'border-b border-divider'}`}><span className="flex size-8 items-center justify-center rounded-lg bg-accentSoft text-accentPressed"><Icon size={16} /></span><span className="text-sm font-medium">{label}</span><span className="ml-auto max-w-[60%] truncate text-right text-sm text-muted">{value}</span></div>;
 }

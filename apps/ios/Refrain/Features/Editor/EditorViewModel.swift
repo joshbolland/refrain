@@ -68,6 +68,17 @@ final class EditorViewModel {
         self.parsedLines = LineParser.parseLyricBody(file.body)
     }
 
+    func currentDraftFile() -> LyricFile {
+        LyricFile(
+            id: fileId,
+            title: title,
+            body: body,
+            createdAt: createdAt,
+            updatedAt: initialUpdatedAt,
+            sectionTypes: sectionTypes
+        )
+    }
+
     // MARK: - Auto-Save
 
     func startAutoSave() async {

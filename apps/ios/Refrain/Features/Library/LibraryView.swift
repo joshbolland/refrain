@@ -14,6 +14,9 @@ struct LibraryView: View {
     @State private var linkSheetItem: LibraryItem?
     @State private var showManageItemsSheet = false
     @State private var renamingItem: LibraryItem?
+    @State private var deleteConfirmationItem: LibraryItem?
+    @State private var openSwipeItemId: LibraryItem.ID?
+    @State private var openSwipeSide: LibrarySwipeSide?
     @State private var renameDraft = ""
     @State private var scanDraft: LyricScanDraft?
     @State private var scanErrorMessage: String?
@@ -62,6 +65,17 @@ struct LibraryView: View {
             set: { isPresented in
                 if !isPresented {
                     scanErrorMessage = nil
+                }
+            }
+        )
+    }
+
+    private var deleteConfirmationIsPresented: Binding<Bool> {
+        Binding(
+            get: { deleteConfirmationItem != nil },
+            set: { isPresented in
+                if !isPresented {
+                    deleteConfirmationItem = nil
                 }
             }
         )
@@ -193,6 +207,21 @@ struct LibraryView: View {
                         await appState.renameItem(item, to: newTitle)
                     }
                 }
+            }
+            .alert("Delete Item?", isPresented: deleteConfirmationIsPresented) {
+                Button("Cancel", role: .cancel) {
+                    deleteConfirmationItem = nil
+                }
+
+                Button("Delete", role: .destructive) {
+                    guard let item = deleteConfirmationItem else { return }
+                    deleteConfirmationItem = nil
+                    Task {
+                        await deleteItem(item)
+                    }
+                }
+            } message: {
+                Text("This removes the item from your library, projects, and links.")
             }
             .alert("Unable to Scan", isPresented: scanErrorIsPresented) {
                 Button("OK", role: .cancel) {}
@@ -476,23 +505,40 @@ struct LibraryView: View {
     private var listView: some View {
         LazyVStack(spacing: 0) {
             ForEach(Array(visibleItems.enumerated()), id: \.element.id) { index, item in
-                LibraryItemRow(
-                    item: item,
-                    metadata: appState.metadata(for: item),
-                    collectionCount: appState.projectsContaining(item).count,
-                    isSelectionMode: false,
-                    isSelected: false,
-                    onSelect: {
-                        selectedItem = item
+                SwipeableLibraryItemRow(
+                    isOpen: openSwipeItemId == item.id,
+                    openSide: openSwipeItemId == item.id ? openSwipeSide : nil,
+                    leadingTitle: appState.isFavorite(item) ? "Unfavorite" : "Favorite",
+                    leadingSystemImage: appState.isFavorite(item) ? "star.slash" : "star",
+                    trailingPrimaryTitle: appState.isArchived(item) ? "Restore" : "Archive",
+                    trailingPrimarySystemImage: appState.isArchived(item) ? "tray.and.arrow.up" : "archivebox",
+                    onOpenSideChange: { side in
+                        setOpenSwipeSide(side, for: item)
                     },
-                    showsPressFeedback: true
-                )
-                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    Button(role: .destructive) {
-                        Task { await deleteItem(item) }
-                    } label: {
-                        Label("Delete", systemImage: "trash")
+                    onLeadingAction: {
+                        closeSwipeActions()
+                        toggleFavorite(for: item)
+                    },
+                    onTrailingPrimaryAction: {
+                        closeSwipeActions()
+                        toggleArchived(for: item)
+                    },
+                    onDelete: {
+                        closeSwipeActions()
+                        confirmDelete(item)
                     }
+                ) {
+                    LibraryItemRow(
+                        item: item,
+                        metadata: appState.metadata(for: item),
+                        collectionCount: appState.projectsContaining(item).count,
+                        isSelectionMode: false,
+                        isSelected: false,
+                        onSelect: {
+                            selectItem(item)
+                        },
+                        showsPressFeedback: true
+                    )
                 }
                 .overlay(alignment: .bottom) {
                     if index < visibleItems.count - 1 {
@@ -563,7 +609,7 @@ struct LibraryView: View {
         Divider()
 
         Button(role: .destructive) {
-            Task { await deleteItem(item) }
+            confirmDelete(item)
         } label: {
             Label("Delete", systemImage: "trash")
         }
@@ -572,6 +618,42 @@ struct LibraryView: View {
     private func beginRenaming(_ item: LibraryItem) {
         renamingItem = item
         renameDraft = item.title
+    }
+
+    private func selectItem(_ item: LibraryItem) {
+        guard openSwipeItemId == nil else {
+            closeSwipeActions()
+            return
+        }
+
+        selectedItem = item
+    }
+
+    private func setOpenSwipeSide(_ side: LibrarySwipeSide?, for item: LibraryItem) {
+        guard let side else {
+            closeSwipeActions()
+            return
+        }
+
+        openSwipeItemId = item.id
+        openSwipeSide = side
+    }
+
+    private func closeSwipeActions() {
+        openSwipeItemId = nil
+        openSwipeSide = nil
+    }
+
+    private func confirmDelete(_ item: LibraryItem) {
+        deleteConfirmationItem = item
+    }
+
+    private func toggleFavorite(for item: LibraryItem) {
+        appState.setFavorite(!appState.isFavorite(item), for: item)
+    }
+
+    private func toggleArchived(for item: LibraryItem) {
+        appState.setArchived(!appState.isArchived(item), for: item)
     }
 
     private func deleteItem(_ item: LibraryItem) async {
@@ -737,6 +819,209 @@ struct LibraryItemRow: View {
             .font(.system(size: 14, weight: .semibold))
             .foregroundStyle(tint)
             .frame(width: 20, height: 20)
+    }
+}
+
+private enum LibrarySwipeSide: Equatable {
+    case leading
+    case trailing
+}
+
+private enum LibrarySwipeMetrics {
+    static let leadingRevealWidth: CGFloat = 96
+    static let trailingActionWidth: CGFloat = 84
+    static let trailingRevealWidth: CGFloat = trailingActionWidth * 2
+    static let leadingOpenThreshold: CGFloat = 44
+    static let trailingOpenThreshold: CGFloat = 56
+    static let leadingFullSwipeThreshold: CGFloat = 170
+    static let overdragWidth: CGFloat = 72
+}
+
+private struct SwipeableLibraryItemRow<Content: View>: View {
+    let isOpen: Bool
+    let openSide: LibrarySwipeSide?
+    let leadingTitle: String
+    let leadingSystemImage: String
+    let trailingPrimaryTitle: String
+    let trailingPrimarySystemImage: String
+    let onOpenSideChange: (LibrarySwipeSide?) -> Void
+    let onLeadingAction: () -> Void
+    let onTrailingPrimaryAction: () -> Void
+    let onDelete: () -> Void
+
+    private let content: Content
+
+    @GestureState private var dragOffset: CGFloat = 0
+
+    init(
+        isOpen: Bool,
+        openSide: LibrarySwipeSide?,
+        leadingTitle: String,
+        leadingSystemImage: String,
+        trailingPrimaryTitle: String,
+        trailingPrimarySystemImage: String,
+        onOpenSideChange: @escaping (LibrarySwipeSide?) -> Void,
+        onLeadingAction: @escaping () -> Void,
+        onTrailingPrimaryAction: @escaping () -> Void,
+        onDelete: @escaping () -> Void,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.isOpen = isOpen
+        self.openSide = openSide
+        self.leadingTitle = leadingTitle
+        self.leadingSystemImage = leadingSystemImage
+        self.trailingPrimaryTitle = trailingPrimaryTitle
+        self.trailingPrimarySystemImage = trailingPrimarySystemImage
+        self.onOpenSideChange = onOpenSideChange
+        self.onLeadingAction = onLeadingAction
+        self.onTrailingPrimaryAction = onTrailingPrimaryAction
+        self.onDelete = onDelete
+        self.content = content()
+    }
+
+    var body: some View {
+        ZStack {
+            leadingActions
+            trailingActions
+
+            content
+                .background(Theme.paper)
+                .offset(x: displayedOffset)
+                .simultaneousGesture(horizontalSwipeGesture)
+                .animation(.spring(response: 0.26, dampingFraction: 0.88), value: restingOffset)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .clipped()
+    }
+
+    private var leadingActions: some View {
+        HStack(spacing: 0) {
+            actionButton(
+                title: leadingTitle,
+                systemImage: leadingSystemImage,
+                background: Theme.accentPressed,
+                width: LibrarySwipeMetrics.leadingRevealWidth,
+                action: onLeadingAction
+            )
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.accentPressed)
+    }
+
+    private var trailingActions: some View {
+        HStack(spacing: 0) {
+            Spacer(minLength: 0)
+
+            actionButton(
+                title: trailingPrimaryTitle,
+                systemImage: trailingPrimarySystemImage,
+                background: Theme.muted,
+                width: LibrarySwipeMetrics.trailingActionWidth,
+                action: onTrailingPrimaryAction
+            )
+
+            actionButton(
+                title: "Delete",
+                systemImage: "trash",
+                background: Theme.destructive,
+                width: LibrarySwipeMetrics.trailingActionWidth,
+                action: onDelete
+            )
+        }
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .background(Theme.destructive)
+    }
+
+    private func actionButton(
+        title: String,
+        systemImage: String,
+        background: Color,
+        width: CGFloat,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(spacing: 5) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 16, weight: .semibold))
+
+                Text(title)
+                    .font(.system(size: 11, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            .foregroundStyle(.white)
+            .frame(width: width)
+            .frame(maxHeight: .infinity)
+        }
+        .buttonStyle(.plain)
+        .background(background)
+    }
+
+    private var restingOffset: CGFloat {
+        guard isOpen, let openSide else {
+            return 0
+        }
+
+        switch openSide {
+        case .leading:
+            return LibrarySwipeMetrics.leadingRevealWidth
+        case .trailing:
+            return -LibrarySwipeMetrics.trailingRevealWidth
+        }
+    }
+
+    private var displayedOffset: CGFloat {
+        let rawOffset = restingOffset + dragOffset
+        let minimumOffset = -LibrarySwipeMetrics.trailingRevealWidth - LibrarySwipeMetrics.overdragWidth
+        let maximumOffset = LibrarySwipeMetrics.leadingRevealWidth + LibrarySwipeMetrics.overdragWidth
+
+        return min(max(rawOffset, minimumOffset), maximumOffset)
+    }
+
+    private var horizontalSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 12)
+            .updating($dragOffset) { value, state, _ in
+                guard isHorizontalDrag(value) else {
+                    return
+                }
+
+                state = value.translation.width
+            }
+            .onEnded { value in
+                guard isHorizontalDrag(value) else {
+                    return
+                }
+
+                finishDrag(value)
+            }
+    }
+
+    private func finishDrag(_ value: DragGesture.Value) {
+        let finalOffset = restingOffset + value.translation.width
+        let predictedOffset = restingOffset + value.predictedEndTranslation.width
+
+        if max(finalOffset, predictedOffset) >= LibrarySwipeMetrics.leadingFullSwipeThreshold {
+            onLeadingAction()
+            return
+        }
+
+        if finalOffset >= LibrarySwipeMetrics.leadingOpenThreshold {
+            onOpenSideChange(.leading)
+        } else if finalOffset <= -LibrarySwipeMetrics.trailingOpenThreshold {
+            onOpenSideChange(.trailing)
+        } else {
+            onOpenSideChange(nil)
+        }
+    }
+
+    private func isHorizontalDrag(_ value: DragGesture.Value) -> Bool {
+        let horizontalDistance = abs(value.translation.width)
+        let verticalDistance = abs(value.translation.height)
+
+        return horizontalDistance > verticalDistance * 1.2
     }
 }
 

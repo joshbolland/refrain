@@ -2,339 +2,234 @@
 
 import {
   AlertTriangle,
-  BookOpen,
+  BookOpenText,
   ChevronDown,
-  FolderKanban,
+  FileImage,
+  Files,
+  Folder,
   LogOut,
   Mic2,
+  Moon,
+  MoreHorizontal,
+  Music2,
   Plus,
   RefreshCw,
   Settings,
+  Sun,
+  X,
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { useAuthStore } from '@/lib/auth-store';
+import { resolveTheme, THEME_STORAGE_KEY, type ThemePreference } from '@/lib/theme';
 import { useWorkspaceStore } from '@/lib/workspace-store';
-
 import { cx } from './workspace-primitives';
+import type { ProjectWithCount } from '@refrain/domain';
+
+const applyTheme = (preference: ThemePreference) => {
+  const resolved = resolveTheme(preference, window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = resolved;
+  document.documentElement.style.colorScheme = resolved;
+};
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const { user, signOut } = useAuthStore((state) => ({
-    user: state.user,
-    signOut: state.signOut,
-  }));
-  const createLyric = useWorkspaceStore((state) => state.createLyric);
-  const { workspaceError, refreshWorkspace, workspaceLoading } = useWorkspaceStore((state) => ({
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [theme, setTheme] = useState<ThemePreference>('system');
+  const [newProject, setNewProject] = useState(false);
+  const [projectTitle, setProjectTitle] = useState('');
+  const [projectMenu, setProjectMenu] = useState<string | null>(null);
+  const [editingProject, setEditingProject] = useState<ProjectWithCount | null>(null);
+  const [deletingProject, setDeletingProject] = useState<ProjectWithCount | null>(null);
+  const { user, signOut } = useAuthStore((state) => ({ user: state.user, signOut: state.signOut }));
+  const {
+    createLyric,
+    createProject,
+    deleteProject,
+    projects,
+    refresh,
+    renameProject,
+    workspaceError,
+    workspaceLoading,
+  } = useWorkspaceStore((state) => ({
+    createLyric: state.createLyric,
+    createProject: state.createProject,
+    deleteProject: state.deleteProject,
+    projects: state.projects,
+    refresh: state.refresh,
+    renameProject: state.renameProject,
     workspaceError: state.error,
-    refreshWorkspace: state.refresh,
     workspaceLoading: state.isLoading,
   }));
+  const libraryBase = pathname === '/preview' ? '/preview' : '/library';
+  const isLibraryWorkspace = pathname === '/library' || pathname === '/preview';
+  const hasLibraryLevel = isLibraryWorkspace && Boolean(
+    searchParams.get('view') || searchParams.get('project') || searchParams.get('lyric') || searchParams.get('recording'),
+  );
+
+  useEffect(() => {
+    const saved = (localStorage.getItem(THEME_STORAGE_KEY) as ThemePreference | null) ?? 'system';
+    setTheme(saved);
+    applyTheme(saved);
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const update = () => saved === 'system' && applyTheme('system');
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'n') {
+        event.preventDefault();
+        setCreateOpen((open) => !open);
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key === '\\') {
+        event.preventDefault();
+        setSidebarOpen((open) => !open);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const setThemePreference = (value: ThemePreference) => {
+    localStorage.setItem(THEME_STORAGE_KEY, value);
+    setTheme(value);
+    applyTheme(value);
+  };
 
   const handleCreateLyric = async () => {
     const lyric = await createLyric();
     setCreateOpen(false);
-    router.push(`/library?lyric=${lyric.id}`);
+    router.push(`${libraryBase}?view=all&lyric=${lyric.id}`);
   };
 
-  const handleCreateRecording = () => {
-    setCreateOpen(false);
-    router.push('/library?capture=1');
-  };
-
-  const handleSignOut = async () => {
-    setAccountOpen(false);
-    await signOut();
+  const submitProject = async () => {
+    if (!projectTitle.trim()) return;
+    const project = await createProject(projectTitle);
+    setProjectTitle('');
+    setNewProject(false);
+    router.push(`${libraryBase}?project=${project.id}`);
   };
 
   return (
-    <div className="flex h-dvh min-h-screen flex-col overflow-hidden bg-canvas">
-      <TopAppBar
-        accountOpen={accountOpen}
-        createOpen={createOpen}
-        onAccountOpenChange={setAccountOpen}
-        onCreateLyric={() => void handleCreateLyric()}
-        onCreateOpenChange={setCreateOpen}
-        onCreateRecording={handleCreateRecording}
-        onSignOut={() => void handleSignOut()}
-        pathname={pathname}
-        userEmail={user?.email ?? 'Refrain user'}
-      />
-
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden pb-[84px] md:pb-0">
-        {workspaceError ? (
-          <div className="mx-4 mt-4 flex shrink-0 flex-col gap-3 rounded-xl border border-danger/25 bg-red-50 px-4 py-3 text-sm text-danger md:flex-row md:items-center md:justify-between">
-            <div className="flex min-w-0 gap-3">
-              <AlertTriangle className="mt-0.5 shrink-0" size={18} />
-              <p className="min-w-0 leading-6">{workspaceError}</p>
+    <div className="flex h-dvh min-h-screen overflow-hidden bg-canvas text-ink">
+      {sidebarOpen ? (
+        <aside className={cx(
+          'rf-sidebar relative z-30 h-full w-full shrink-0 border-r border-divider md:w-[240px]',
+          hasLibraryLevel ? 'hidden md:flex' : 'flex',
+          'flex-col',
+        )}>
+          <div className="flex h-16 shrink-0 items-center justify-between px-4">
+            <Link href={libraryBase} className="flex min-w-0 items-center gap-2.5 rounded-lg">
+              <Image src="/assets/refrain-bird.png" alt="" width={34} height={34} priority className="size-8 scale-125 object-contain" />
+              <span className="text-[17px] font-semibold tracking-[-0.02em]">Refrain</span>
+            </Link>
+            <div className="relative">
+              <button type="button" className="notes-icon-button bg-accent text-white" aria-label="Create item" title="Create item (⌘N)" onClick={() => setCreateOpen(!createOpen)}>
+                <Plus size={18} />
+              </button>
+              {createOpen ? (
+                <div className="notes-menu left-auto right-0 top-[calc(100%+8px)] w-56">
+                  <MenuButton icon={BookOpenText} label="New lyric" onClick={() => void handleCreateLyric()} />
+                  <MenuButton icon={Mic2} label="New recording" onClick={() => { setCreateOpen(false); router.push(`${libraryBase}?view=all&capture=1`); }} />
+                  <MenuButton icon={FileImage} label="Import lyric image" onClick={() => { setCreateOpen(false); router.push(`${libraryBase}?view=all&import=1`); }} />
+                  <p className="border-t border-divider px-3 pt-2 text-[11px] text-muted">⌘N</p>
+                </div>
+              ) : null}
             </div>
-            <button
-              type="button"
-              onClick={() => void refreshWorkspace()}
-              disabled={workspaceLoading}
-              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-danger/25 bg-white px-3 py-2 text-xs font-semibold transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <RefreshCw size={14} />
-              Retry
-            </button>
           </div>
-        ) : null}
-        <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
-      </main>
 
-      <MobileNavigation
-        createOpen={createOpen}
-        onCreateLyric={() => void handleCreateLyric()}
-        onCreateOpenChange={setCreateOpen}
-        onCreateRecording={handleCreateRecording}
-        pathname={pathname}
-      />
-    </div>
-  );
-}
+          <nav aria-label="Library" className="rf-scrollbar min-h-0 flex-1 overflow-y-auto px-2 pb-4">
+            <p className="px-2 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted/70">Library</p>
+            <SidebarLink href={`${libraryBase}?view=all`} active={isLibraryWorkspace && (searchParams.get('view') === 'all' || (!searchParams.get('view') && !searchParams.get('project')))} icon={Files} label="All Items" />
+            <SidebarLink href={`${libraryBase}?view=lyrics`} active={searchParams.get('view') === 'lyrics'} icon={Music2} label="Lyrics" />
+            <SidebarLink href={`${libraryBase}?view=recordings`} active={searchParams.get('view') === 'recordings'} icon={Mic2} label="Recordings" />
 
-function TopAppBar({
-  accountOpen,
-  createOpen,
-  onAccountOpenChange,
-  onCreateLyric,
-  onCreateOpenChange,
-  onCreateRecording,
-  onSignOut,
-  pathname,
-  userEmail,
-}: {
-  accountOpen: boolean;
-  createOpen: boolean;
-  onAccountOpenChange: (open: boolean) => void;
-  onCreateLyric: () => void;
-  onCreateOpenChange: (open: boolean) => void;
-  onCreateRecording: () => void;
-  onSignOut: () => void;
-  pathname: string;
-  userEmail: string;
-}) {
-  const initial = userEmail.trim().charAt(0).toUpperCase() || 'R';
+            <div className="mt-5 flex items-center justify-between px-2 pb-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted/70">Projects</p>
+              <button type="button" onClick={() => setNewProject(true)} aria-label="New project" className="rounded-md p-1 text-muted hover:bg-paper/50 hover:text-ink"><Plus size={14} /></button>
+            </div>
+            {newProject ? (
+              <form className="mb-1 px-1" onSubmit={(event) => { event.preventDefault(); void submitProject(); }}>
+                <input autoFocus value={projectTitle} onChange={(event) => setProjectTitle(event.target.value)} onBlur={() => !projectTitle && setNewProject(false)} placeholder="Project name" className="w-full rounded-lg border border-accent bg-paper px-2.5 py-2 text-sm outline-none ring-2 ring-accentSoft" />
+              </form>
+            ) : null}
+            {projects.map((project) => (
+              <div className="group relative" key={project.id}>
+                <SidebarLink href={`${libraryBase}?project=${project.id}`} active={searchParams.get('project') === project.id} icon={Folder} label={project.title} count={project.itemCount} />
+                <button type="button" aria-label={`More options for ${project.title}`} onClick={() => setProjectMenu(projectMenu === project.id ? null : project.id)} className="absolute right-8 top-1/2 -translate-y-1/2 rounded p-1 text-muted opacity-0 hover:bg-paper group-hover:opacity-100 focus:opacity-100"><MoreHorizontal size={14} /></button>
+                {projectMenu === project.id ? (
+                  <div className="notes-menu left-3 right-3 top-9 z-40">
+                    <button type="button" onClick={() => { setProjectMenu(null); setEditingProject(project); }} className="notes-menu-item">Rename & Details…</button>
+                    <button type="button" onClick={() => { setProjectMenu(null); setDeletingProject(project); }} className="notes-menu-item text-danger">Delete Project…</button>
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </nav>
 
-  return (
-    <header className="relative z-30 shrink-0 border-b border-divider bg-paper px-4 md:px-6">
-      <div className="grid h-16 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
-        <Link href="/library" className="flex min-w-0 items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-          <Image
-            alt=""
-            className="size-8 scale-[1.35] object-contain"
-            height={32}
-            priority
-            src="/assets/refrain-bird.png"
-            width={32}
-          />
-          <span className="truncate text-[17px] font-semibold tracking-[-0.01em] text-ink">Refrain</span>
-        </Link>
-
-        <nav aria-label="Primary" className="hidden h-full items-center gap-2 md:flex">
-          <PrimaryNavLink href="/library" icon={BookOpen} label="Library" pathname={pathname} />
-          <PrimaryNavLink href="/projects" icon={FolderKanban} label="Projects" pathname={pathname} />
-          <div className="relative ml-8">
-            <button
-              type="button"
-              onClick={() => {
-                onCreateOpenChange(!createOpen);
-                onAccountOpenChange(false);
-              }}
-              aria-label="Create"
-              title="Create"
-              className={cx(
-                'flex size-10 items-center justify-center rounded-full border text-white shadow-[0_6px_18px_rgba(124,143,255,0.24)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
-                createOpen
-                  ? 'border-accentPressed bg-accentPressed'
-                  : 'border-accent bg-accent hover:border-accentPressed hover:bg-accentPressed',
-              )}
-            >
-              <Plus size={20} strokeWidth={2.25} />
+          <div className="relative border-t border-divider p-2">
+            <button type="button" onClick={() => setAccountOpen(!accountOpen)} className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-paper/50">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accentPressed text-xs font-semibold text-white">{user?.email?.charAt(0).toUpperCase() || 'R'}</span>
+              <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{user?.email ?? 'Preview user'}</span><span className="block text-[11px] text-muted">Account & appearance</span></span>
+              <ChevronDown size={14} className="text-muted" />
             </button>
-            {createOpen ? (
-              <CreateMenu onCreateLyric={onCreateLyric} onCreateRecording={onCreateRecording} />
+            {accountOpen ? (
+              <div className="notes-menu bottom-[calc(100%+6px)] left-2 right-2">
+                <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Appearance</p>
+                <div className="grid grid-cols-3 gap-1 px-2 pb-2">
+                  {(['light', 'dark', 'system'] as ThemePreference[]).map((value) => (
+                    <button key={value} type="button" onClick={() => setThemePreference(value)} className={cx('rounded-lg px-2 py-2 text-xs capitalize', theme === value ? 'rf-selection font-semibold' : 'hover:bg-canvas')}>
+                      {value === 'dark' ? <Moon className="mx-auto mb-1" size={14} /> : <Sun className="mx-auto mb-1" size={14} />}{value}
+                    </button>
+                  ))}
+                </div>
+                <Link href="/settings" onClick={() => setAccountOpen(false)} className="notes-menu-item"><Settings size={15} /> Settings</Link>
+                <button type="button" onClick={() => void signOut()} className="notes-menu-item text-danger"><LogOut size={15} /> Sign out</button>
+              </div>
             ) : null}
           </div>
-        </nav>
+        </aside>
+      ) : null}
 
-        <div className="relative col-start-3 flex min-w-0 justify-end">
-          <button
-            type="button"
-            onClick={() => {
-              onAccountOpenChange(!accountOpen);
-              onCreateOpenChange(false);
-            }}
-            aria-expanded={accountOpen}
-            className={cx(
-              'flex items-center gap-2 rounded-full p-1 pr-1.5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
-              pathname.startsWith('/settings') || accountOpen ? 'bg-accentSoft' : 'hover:bg-canvas',
-            )}
-          >
-            <span className="flex size-8 items-center justify-center rounded-full bg-ink text-xs font-semibold text-white">
-              {initial}
-            </span>
-            <ChevronDown size={14} className="hidden text-muted sm:block" />
-            <span className="sr-only">Account menu for {userEmail}</span>
-          </button>
-
-          {accountOpen ? (
-            <div className="absolute right-0 top-[calc(100%+10px)] w-72 rounded-xl border border-divider bg-paper p-2 shadow-float">
-              <div className="px-3 py-2">
-                <p className="text-xs text-muted/70">Signed in as</p>
-                <p className="mt-1 truncate text-sm font-semibold text-ink">{userEmail}</p>
-              </div>
-              <Link
-                href="/settings"
-                onClick={() => onAccountOpenChange(false)}
-                className="mt-1 flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted hover:bg-accentSoft hover:text-ink"
-              >
-                <Settings size={17} />
-                Settings
-              </Link>
-              <button
-                type="button"
-                onClick={onSignOut}
-                className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-muted hover:bg-red-50 hover:text-danger"
-              >
-                <LogOut size={17} />
-                Sign out
-              </button>
-            </div>
-          ) : null}
-        </div>
-      </div>
-    </header>
-  );
-}
-
-function CreateMenu({
-  onCreateLyric,
-  onCreateRecording,
-  mobile = false,
-}: {
-  onCreateLyric: () => void;
-  onCreateRecording: () => void;
-  mobile?: boolean;
-}) {
-  return (
-    <div
-      className={cx(
-        'w-56 rounded-xl border border-divider bg-paper p-2 shadow-float',
-        mobile ? 'fixed bottom-[88px] left-1/2 -translate-x-1/2' : 'absolute left-1/2 top-[calc(100%+10px)] -translate-x-1/2',
-      )}
-    >
-      <button
-        type="button"
-        onClick={onCreateLyric}
-        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-accentSoft"
-      >
-        <BookOpen size={17} />
-        New lyric
-      </button>
-      <button
-        type="button"
-        onClick={onCreateRecording}
-        className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-accentSoft"
-      >
-        <Mic2 size={17} />
-        New recording
-      </button>
+      <main className="relative min-w-0 flex-1 overflow-hidden">
+        {workspaceError ? (
+          <div className="absolute inset-x-4 top-4 z-50 flex items-center gap-3 rounded-xl border border-danger/30 bg-paper px-4 py-3 text-sm text-danger shadow-float">
+            <AlertTriangle size={17} /><span className="min-w-0 flex-1">{workspaceError}</span>
+            <button type="button" disabled={workspaceLoading} onClick={() => void refresh()} className="notes-icon-button"><RefreshCw size={15} /></button>
+          </div>
+        ) : null}
+        {children}
+      </main>
+      {editingProject ? <ProjectEditor project={editingProject} onClose={() => setEditingProject(null)} onSave={async (title, description) => { await renameProject(editingProject.id, title, description); setEditingProject(null); }} /> : null}
+      {deletingProject ? <ShellDialog title="Delete Project?" onClose={() => setDeletingProject(null)}><p className="text-sm leading-6 text-muted">“{deletingProject.title}” will be deleted. Its lyrics and recordings will remain in your library.</p><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setDeletingProject(null)} className="rounded-lg px-4 py-2 text-sm hover:bg-canvas">Cancel</button><button type="button" onClick={async () => { await deleteProject(deletingProject.id); if (searchParams.get('project') === deletingProject.id) router.push(`${libraryBase}?view=all`); setDeletingProject(null); }} className="rounded-lg bg-danger px-4 py-2 text-sm font-semibold text-white">Delete</button></div></ShellDialog> : null}
     </div>
   );
 }
 
-function MobileNavigation({
-  createOpen,
-  onCreateLyric,
-  onCreateOpenChange,
-  onCreateRecording,
-  pathname,
-}: {
-  createOpen: boolean;
-  onCreateLyric: () => void;
-  onCreateOpenChange: (open: boolean) => void;
-  onCreateRecording: () => void;
-  pathname: string;
-}) {
-  return (
-    <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-30 grid h-[84px] grid-cols-3 border-t border-divider bg-paper px-5 md:hidden">
-      <MobileNavLink href="/library" icon={BookOpen} label="Library" pathname={pathname} />
-      <div className="relative flex justify-center">
-        <button
-          type="button"
-          onClick={() => onCreateOpenChange(!createOpen)}
-          aria-label="Create"
-          aria-expanded={createOpen}
-          className="-mt-5 flex size-16 items-center justify-center rounded-full border-4 border-paper bg-accent text-white shadow-[0_8px_24px_rgba(124,143,255,0.3)] transition hover:bg-accentPressed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-        >
-          <Plus size={26} strokeWidth={2.2} />
-        </button>
-        {createOpen ? (
-          <CreateMenu mobile onCreateLyric={onCreateLyric} onCreateRecording={onCreateRecording} />
-        ) : null}
-      </div>
-      <MobileNavLink href="/projects" icon={FolderKanban} label="Projects" pathname={pathname} />
-    </nav>
-  );
+function SidebarLink({ href, active, icon: Icon, label, count }: { href: string; active: boolean; icon: typeof Files; label: string; count?: number }) {
+  return <Link href={href} className={cx('flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm transition', active ? 'rf-selection font-medium text-ink' : 'text-muted hover:bg-paper/45 hover:text-ink')}><Icon size={16} strokeWidth={1.8} /><span className="min-w-0 flex-1 truncate">{label}</span>{count !== undefined ? <span className="text-xs text-muted/70">{count}</span> : null}</Link>;
 }
 
-function PrimaryNavLink({
-  href,
-  icon: Icon,
-  label,
-  pathname,
-}: {
-  href: string;
-  icon: typeof BookOpen;
-  label: string;
-  pathname: string;
-}) {
-  const active = pathname.startsWith(href);
-
-  return (
-    <Link
-      href={href}
-      className={cx(
-        'relative flex h-full items-center gap-2 px-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent',
-        active ? 'text-accentPressed after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-accentPressed' : 'text-muted hover:text-ink',
-      )}
-    >
-      <Icon size={17} strokeWidth={1.75} />
-      {label}
-    </Link>
-  );
+function MenuButton({ icon: Icon, label, onClick }: { icon: typeof Files; label: string; onClick: () => void }) {
+  return <button type="button" onClick={onClick} className="notes-menu-item"><Icon size={16} />{label}</button>;
 }
 
-function MobileNavLink({
-  href,
-  icon: Icon,
-  label,
-  pathname,
-}: {
-  href: string;
-  icon: typeof BookOpen;
-  label: string;
-  pathname: string;
-}) {
-  const active = pathname.startsWith(href);
-  return (
-    <Link
-      href={href}
-      className={cx(
-        'flex min-w-0 flex-col items-center justify-center gap-1 text-xs font-medium transition',
-        active ? 'text-accentPressed' : 'text-muted',
-      )}
-    >
-      <Icon size={22} strokeWidth={1.75} />
-      {label}
-    </Link>
-  );
+function ProjectEditor({ project, onClose, onSave }: { project: ProjectWithCount; onClose: () => void; onSave: (title: string, description: string | null) => Promise<void> }) {
+  const [title, setTitle] = useState(project.title);
+  const [description, setDescription] = useState(project.description ?? '');
+  return <ShellDialog title="Project Details" onClose={onClose}><label className="block text-xs font-medium text-muted">Name<input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} className="mt-1.5 h-10 w-full rounded-lg border border-divider bg-canvas px-3 text-sm text-ink outline-none focus:border-accent" /></label><label className="mt-4 block text-xs font-medium text-muted">Description<textarea value={description} onChange={(event) => setDescription(event.target.value)} className="mt-1.5 h-24 w-full resize-none rounded-lg border border-divider bg-canvas p-3 text-sm text-ink outline-none focus:border-accent" /></label><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm hover:bg-canvas">Cancel</button><button type="button" disabled={!title.trim()} onClick={() => void onSave(title.trim(), description.trim() || null)} className="rounded-lg bg-accentPressed px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Save</button></div></ShellDialog>;
+}
+
+function ShellDialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  return <div className="rf-overlay fixed inset-0 z-[80] flex items-center justify-center p-4" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><div role="dialog" aria-modal="true" aria-label={title} className="w-full max-w-md rounded-2xl border border-divider bg-paper p-5 shadow-float"><header className="mb-4 flex items-center"><h2 className="flex-1 text-lg font-semibold">{title}</h2><button type="button" onClick={onClose} className="notes-icon-button"><X size={17} /></button></header>{children}</div></div>;
 }

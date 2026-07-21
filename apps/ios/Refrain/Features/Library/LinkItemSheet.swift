@@ -38,6 +38,14 @@ struct LinkItemSheet: View {
         appState.linkedItems(for: sourceItem)
     }
 
+    private var sourceLyric: LyricFile? {
+        guard case .lyric(let file) = sourceItem else {
+            return nil
+        }
+
+        return file
+    }
+
     private var importerTypes: [UTType] {
         sourceItem.isRecording ? [.plainText, .text] : [.audio]
     }
@@ -82,9 +90,17 @@ struct LinkItemSheet: View {
                 }
             }
             .sheet(isPresented: $showRecording) {
-                RecordingView { recording in
-                    Task {
-                        await link(target: .recording(recording), dismissWhenDone: true)
+                if let sourceLyric {
+                    LinkedLyricRecordingView(lyric: sourceLyric) { recording in
+                        Task {
+                            await link(target: .recording(recording), dismissWhenDone: true)
+                        }
+                    }
+                } else {
+                    RecordingView { recording in
+                        Task {
+                            await link(target: .recording(recording), dismissWhenDone: true)
+                        }
                     }
                 }
             }
@@ -234,7 +250,7 @@ struct LinkItemSheet: View {
                 title: "Create New \(sourceItem.isRecording ? "Lyric" : "Recording")",
                 subtitle: sourceItem.isRecording
                     ? "Create a blank lyric and link it immediately."
-                    : "Record a new take and link it after saving."
+                    : "Record a new take while reading this lyric."
             )
 
             Button {
